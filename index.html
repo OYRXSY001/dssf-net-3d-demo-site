@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>鸡胚早期雌雄光谱识别 · 3D 项目展示</title>
+<meta name="description" content="Vis–NIR 透射光谱采集装置的三维项目展示：装置、光路、测量流程与 DSSF-Net 判定。">
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/NotoSansSC-VF.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./assets/fonts/NotoSerifSC-VF.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./src/screens/screens.css">
+<link rel="stylesheet" href="./src/screens/p2.css">
+<link rel="stylesheet" href="./src/screens/p3.css">
+<link rel="stylesheet" href="./src/screens/p4.css">
+<link rel="stylesheet" href="./src/story.css">
+<link rel="stylesheet" href="./src/cards.css">
+<link rel="stylesheet" href="./src/guide.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.min.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body data-step="1">
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <div class="brand-text">
+      <h1>鸡胚早期雌雄光谱识别</h1>
+      <p>VIS–NIR TRANSMISSION SPECTROSCOPY · DSSF-NET</p>
+    </div>
+  </div>
+
+  <nav class="steps" aria-label="演示步骤">
+    <button class="step is-active" data-step="1"><span>01</span>装置</button>
+    <button class="step" data-step="2"><span>02</span>流程</button>
+    <button class="step" data-step="3"><span>03</span>光谱</button>
+    <button class="step" data-step="4"><span>04</span>结果</button>
+  </nav>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btn-flow" title="在 3D 界面内讲解全流程（F）" aria-pressed="false"><span class="story-glyph" aria-hidden="true">▶</span><span class="flow-label">全流程讲解</span></button>
+    <div class="action-group" role="group" aria-label="装置视图">
+      <button class="btn" id="btn-beam" aria-pressed="true" title="显示 / 隐藏光路（B）">光路</button>
+      <button class="btn" id="btn-explode" aria-pressed="false" title="拆解 / 合拢（E）">拆解</button>
+      <button class="btn" id="btn-xray" aria-pressed="false" title="剖面示意（X）">剖面</button>
+    </div>
+    <div class="action-group is-icons" role="group" aria-label="视角">
+      <button class="btn icon" id="btn-spin" title="旋转演示（S）" aria-label="旋转演示">⟳</button>
+      <button class="btn icon" id="btn-reset" title="重置视角（R）" aria-label="重置视角">⌂</button>
+    </div>
+    <button class="btn icon only-mobile" id="btn-inspector" aria-label="打开参数面板">≡</button>
+  </div>
+</header>
+
+<main class="stage" id="stage" aria-label="透射式光谱采集装置三维舞台">
+  <canvas id="scene" aria-label="透射式光谱采集装置三维视图"></canvas>
+  <div class="stage-vignette" aria-hidden="true"></div>
+  <div class="stage-glow" aria-hidden="true"></div>
+
+  <div class="stage-topline" id="stage-topline">
+    <span class="stage-index">01</span>
+    <span class="stage-title">透射式光谱采集装置</span>
+    <span class="stage-sep" aria-hidden="true"></span>
+    <span class="stage-sub">Transmission rig · egg intact</span>
+  </div>
+
+  <div class="stage-scrim" aria-hidden="true"></div>
+  <div class="cover" id="cover">
+    <p class="cover-kicker"><span class="cover-year">2026</span> 光谱 · 动物科学 · 研究展示</p>
+    <h2 class="cover-title"><span>不破壳，</span><span>看见第 2–7 天的差别</span></h2>
+    <p class="cover-lead">用一束 340–1020 nm 的连续光穿过正在孵化的鸡蛋，再由 DSSF-Net 从两天的谱形差里读出一个概率。</p>
+    <dl class="cover-stats">
+      <div><dt>固定留出准确率</dt><dd>91.5<small>%</small></dd><span>200 枚 · 论文值</span></div>
+      <div><dt>跨批次平均</dt><dd>84.6<small>%</small></dd><span>4 批留一 · 论文值</span></div>
+      <div><dt>光谱采样</dt><dd>681<small>点</small></dd><span>1 nm 步长 · 340–1020 nm</span></div>
+    </dl>
+    <div class="cover-actions">
+      <button class="cover-enter" id="btn-enter" type="button">进入装置 <span aria-hidden="true">→</span></button>
+      <button class="cover-story" id="btn-cover-story" type="button"><span aria-hidden="true">▶</span> 播放全流程讲解</button>
+    </div>
+    <p class="cover-foot">研究演示 · 非生产决策依据 · 拖拽可旋转装置</p>
+  </div>
+
+  <aside class="flow-placard" id="flow-placard" aria-label="全流程提示牌">
+    <button class="placard-collapse" id="btn-placard-collapse" type="button" aria-expanded="true" aria-controls="placard-body" aria-label="收回全流程提示牌" title="收回">
+      <svg class="placard-collapse-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 2 4 6l3.5 4"/></svg>
+      <span class="placard-collapse-text">收回</span>
+      <span class="placard-collapse-vertical" aria-hidden="true">全流程</span>
+    </button>
+    <div class="placard-body" id="placard-body">
+      <div class="placard-head">
+        <span class="placard-kicker">FULL PROCESS / 全流程</span>
+        <span class="placard-tag">12 拍</span>
+      </div>
+      <h3>从一盏灯，<br>到一枚判定</h3>
+      <ol class="placard-steps">
+        <li><b>01</b><span><strong>卤钨灯</strong><em>150 W 连续谱</em></span></li>
+        <li><b>02</b><span><strong>种蛋</strong><em>钝端朝上 · 不破壳</em></span></li>
+        <li><b>03</b><span><strong>可调焦镜头</strong><em>镜头–蛋 300 mm</em></span></li>
+        <li><b>04</b><span><strong>成像光谱仪</strong><em>681 点 · 1 nm</em></span></li>
+        <li><b>05</b><span><strong>DSSF-Net</strong><em>D2 + D5 双日判定</em></span></li>
+      </ol>
+      <button class="placard-play" id="btn-placard-play" type="button"><span aria-hidden="true">▶</span> 播放全流程讲解 <kbd>F</kbd></button>
+      <p class="placard-note">点击此牌，跟着镜头走完 12 拍</p>
+    </div>
+  </aside>
+
+  <div id="hotspots" class="hotspot-layer"></div>
+  <div id="annotation" class="annotation" role="dialog" aria-live="polite" hidden></div>
+
+  <div class="xray-badge" id="xray-badge" hidden>
+    <b>示意图</b><span>非真实解剖/医学影像，仅用于说明光路与结构位置</span>
+  </div>
+
+  <div id="story-layer" class="story-layer" aria-live="off"></div>
+
+  <footer class="transport" id="transport" hidden>
+    <button class="play" id="btn-play" aria-label="播放一次光谱采集">
+      <span class="play-icon" aria-hidden="true">▶</span>
+      <span id="play-label">播放采集</span>
+    </button>
+    <div class="timeline">
+      <div class="track" role="progressbar" aria-label="采集进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressbar">
+        <div class="fill" id="progress"></div>
+      </div>
+      <div class="transport-meta">
+        <span id="status">待机 · 播放一次 2.67 s 的透射采集</span>
+        <span class="transport-right" title="研究演示，仅供内部验证与汇报；结果不构成生产决策依据。">研究演示 · 非生产决策依据</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="stage-caption" id="stage-caption" hidden>
+    <span class="caption-dot" aria-hidden="true"></span>
+    <span>拖拽旋转 · 滚轮缩放 · 点击部件查看论文参数</span>
+  </div>
+
+<div class="story-bar" id="story-bar" hidden>
+  <span class="story-live" aria-hidden="true"></span>
+  <span class="story-count" id="story-count">01 / 12</span>
+  <div class="story-dots" id="story-dots" aria-hidden="true"></div>
+  <div class="story-ctrl">
+    <button class="story-btn" id="story-mute" aria-pressed="false" title="开关讲解语音">静音</button>
+    <button class="story-btn" id="story-next" title="跳到下一段">跳过</button>
+    <button class="story-btn" id="story-stop" title="结束讲解（Esc）">结束</button>
+    <button class="story-btn is-primary" id="story-replay" hidden title="从头再讲一遍（F）">↻ 重播</button>
+  </div>
+</div>
+
+</main>
+
+<aside class="inspector" id="inspector" aria-label="装置参数与光谱">
+  <div class="inspector-head">
+    <div>
+      <p class="eyebrow">PROJECT DSSF · 01 / 04</p>
+      <h2>装置总览</h2>
+      <p class="inspector-sub">透射式 · 卤钨灯 → 种蛋 → 镜头 → 光谱仪</p>
+    </div>
+    <span class="status-dot" title="WebGL 运行中" aria-label="WebGL 运行中"></span>
+  </div>
+
+  <div class="chip-row">
+    <span class="chip">340–1020 nm</span>
+    <span class="chip">681 点 · 1 nm</span>
+    <span class="chip">镜头–蛋 300 mm</span>
+  </div>
+
+  <section class="card chart-card">
+    <div class="card-head">
+      <div>
+        <h3>透射光谱 T(λ)</h3>
+        <p class="card-sub">D2 / D5 双日谱与差分 ΔS</p>
+      </div>
+      <span class="tag" id="chart-tag">演示曲线</span>
+    </div>
+    <div class="layer-row" role="group" aria-label="曲线图层">
+      <button class="layer is-on" data-layer="d2"><i style="background:#35E0C8"></i>D2</button>
+      <button class="layer is-on" data-layer="d5"><i style="background:#4C9AFF"></i>D5</button>
+      <button class="layer is-on" data-layer="delta"><i style="background:#FFC857"></i>ΔS</button>
+    </div>
+    <canvas id="chart" aria-label="D2 与 D5 透射光谱曲线"></canvas>
+    <p class="note">D2 实线 / D5 虚线；ΔS = D5 − D2。逐蛋曲线为界面演示，非实测。</p>
+  </section>
+
+  <section class="card part-card" id="part-card" aria-live="polite"></section>
+
+  <p class="hint">拖拽旋转 · 滚轮缩放 · 点击部件或热点查看参数</p>
+  <p class="rail-foot">基于 Animals 2026, 16, 2796 · 研究演示</p>
+  <div class="perf" id="perf" hidden></div>
+</aside>
+
+<main id="screens" aria-label="演示分屏">
+  <section class="screen" id="screen-2" data-screen="2" hidden></section>
+  <section class="screen" id="screen-3" data-screen="3" hidden></section>
+  <section class="screen" id="screen-4" data-screen="4" hidden></section>
+</main>
+
+<section class="result" id="result" aria-live="polite" hidden></section>
+
+<div id="guide-root" class="guide-root"></div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<div class="loading" id="loading">
+  <div class="loading-inner">
+    <span class="loader-mark" aria-hidden="true"></span>
+    <p>正在装载装置模型</p>
+    <div class="loader-track"><span></span></div>
+  </div>
+</div>
+
+<div class="fallback" id="fallback" hidden>
+  <h2>当前环境未启用 WebGL</h2>
+  <p>3D 装置无法渲染，但光谱与判定逻辑不受影响。请开启浏览器硬件加速，或使用最新版 Chrome / Edge。</p>
+  <p class="note">论文装置：卤钨灯在下、种蛋钝端朝上固定，上方 300 mm 为可调焦镜头与成像光谱仪，340–1020 nm、1 nm 步长、681 点。</p>
+</div>
+
+<noscript><p class="noscript">该演示需要 JavaScript。</p></noscript>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

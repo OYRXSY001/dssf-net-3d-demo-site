@@ -1,0 +1,331 @@
+/* ==========================================================================
+   cards.css — 3D 锚定讲解卡片
+   浅灰影棚风：白玻璃 + 1px 发丝线 + 柔阴影 + accent #0fa392。
+   颜色取自 styles.css 的 :root 变量（带兜底值，可单独加载）。
+   结构由 cards.js 生成：.cc-card > .cc-head/.cc-lead/.cc-rows/.cc-stat/.cc-chart
+                                    + .cc-stem（指引线）
+   ========================================================================== */
+
+/* 推荐容器（也可由调用方自行提供）：铺满视口、不挡 3D 交互 */
+.cc-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+/* ---------- 卡片本体 ---------- */
+
+.cc-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  width: clamp(286px, 23vw, 344px);
+  max-width: calc(100vw - 48px);
+  padding: 15px 16px 14px;
+  border: 1px solid rgba(16, 24, 40, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(18px) saturate(1.04);
+  backdrop-filter: blur(18px) saturate(1.04);
+  box-shadow:
+    0 18px 40px -24px rgba(16, 24, 40, 0.45),
+    0 2px 8px -3px rgba(16, 24, 40, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  color: var(--text, #161b22);
+  font-family: var(--sans, "Noto Sans SC", "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  text-align: left;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(7px) scale(0.986);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+  will-change: transform, opacity;
+}
+
+.cc-card.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.cc-card.is-out {
+  opacity: 0;
+  transform: translateY(5px) scale(0.99);
+  transition-duration: 160ms;
+  pointer-events: none;
+}
+
+/* 子块用 flex/grid 时 UA 的 [hidden]{display:none} 会被覆盖，这里显式兜底 */
+.cc-card [hidden] {
+  display: none !important;
+}
+
+/* ---------- 头部 ---------- */
+
+.cc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cc-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.42;
+  letter-spacing: 0.01em;
+  color: var(--text, #161b22);
+  overflow-wrap: anywhere;
+}
+
+.cc-tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  max-width: 46%;
+  padding: 0 7px;
+  border: 1px solid rgba(16, 24, 40, 0.09);
+  border-radius: 999px;
+  background: rgba(16, 24, 40, 0.045);
+  color: var(--text-2, #5b6575);
+  font-family: var(--mono, "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translateY(1px);
+}
+
+/* ---------- 正文 ---------- */
+
+.cc-lead {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-2, #5b6575);
+  overflow-wrap: anywhere;
+}
+
+.cc-rows {
+  margin: 8px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(16, 24, 40, 0.06);
+}
+
+.cc-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(16, 24, 40, 0.055);
+}
+
+.cc-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cc-row dt {
+  flex: none;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-3, #8b94a3);
+  white-space: nowrap;
+}
+
+.cc-row dd {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--mono, "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text, #161b22);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 指标 ---------- */
+
+.cc-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(16, 24, 40, 0.06);
+}
+
+.cc-stat strong {
+  font-family: var(--mono, "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--accent-ink, #0a7a6e);
+}
+
+.cc-stat-unit {
+  font-family: var(--mono, "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 11px;
+  color: var(--accent-ink, #0a7a6e);
+  opacity: 0.72;
+}
+
+.cc-stat-label {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--text-3, #8b94a3);
+  text-align: right;
+}
+
+/* ---------- 小图 ---------- */
+
+.cc-chart {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(16, 24, 40, 0.06);
+}
+
+.cc-chart canvas {
+  display: block;
+  width: 100%;
+  height: 62px;
+}
+
+/* ---------- 语气 ---------- */
+
+.cc-card[data-tone="accent"] {
+  border-color: rgba(15, 163, 146, 0.26);
+  box-shadow:
+    0 18px 40px -24px rgba(16, 24, 40, 0.45),
+    0 2px 8px -3px rgba(16, 24, 40, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 0 0 1px rgba(15, 163, 146, 0.05);
+}
+
+.cc-card[data-tone="accent"] .cc-tag {
+  color: var(--accent-ink, #0a7a6e);
+  border-color: rgba(15, 163, 146, 0.26);
+  background: rgba(15, 163, 146, 0.08);
+}
+
+.cc-card[data-tone="warn"] {
+  border-color: rgba(183, 121, 31, 0.28);
+}
+
+.cc-card[data-tone="warn"] .cc-tag {
+  color: var(--warn, #b7791f);
+  border-color: rgba(183, 121, 31, 0.26);
+  background: rgba(183, 121, 31, 0.08);
+}
+
+/* ---------- 指引线：1px 线 + 5px 圆点 ---------- */
+
+.cc-stem {
+  position: absolute;
+  background: rgba(16, 24, 40, 0.25);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+.cc-card[data-stem="on"] .cc-stem {
+  opacity: 1;
+}
+
+.cc-stem::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(16, 24, 40, 0.25);
+}
+
+/* 竖线：卡片在锚点上方 / 下方 */
+.cc-card[data-side="top"] .cc-stem,
+.cc-card[data-side="bottom"] .cc-stem {
+  width: 1px;
+  height: var(--stem, 16px);
+  left: var(--stem-x, 50%);
+}
+
+.cc-card[data-side="top"] .cc-stem {
+  top: 100%;
+}
+.cc-card[data-side="top"] .cc-stem::after {
+  left: -2px;
+  bottom: -2px;
+}
+
+.cc-card[data-side="bottom"] .cc-stem {
+  bottom: 100%;
+}
+.cc-card[data-side="bottom"] .cc-stem::after {
+  left: -2px;
+  top: -2px;
+}
+
+/* 横线：卡片在锚点左侧 / 右侧 */
+.cc-card[data-side="left"] .cc-stem,
+.cc-card[data-side="right"] .cc-stem {
+  height: 1px;
+  width: var(--stem, 16px);
+  top: var(--stem-y, 50%);
+}
+
+.cc-card[data-side="left"] .cc-stem {
+  left: 100%;
+}
+.cc-card[data-side="left"] .cc-stem::after {
+  top: -2px;
+  right: -2px;
+}
+
+.cc-card[data-side="right"] .cc-stem {
+  right: 100%;
+}
+.cc-card[data-side="right"] .cc-stem::after {
+  top: -2px;
+  left: -2px;
+}
+
+/* ---------- 窄屏 / 降级 ---------- */
+
+@media (max-width: 560px) {
+  .cc-card {
+    padding: 11px 12px 10px;
+    box-shadow:
+      0 14px 32px -20px rgba(16, 24, 40, 0.42),
+      0 2px 6px -3px rgba(16, 24, 40, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+  .cc-stat strong {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 900px) {
+  .cc-card { width: min(320px, calc(100vw - 28px)); max-width: calc(100vw - 28px); padding: 13px 14px 12px; }
+  .cc-card .cc-tag { display: none; }
+  .cc-title { font-size: 16px; }
+  .cc-lead { font-size: 12.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-card,
+  .cc-stem {
+    transition-duration: 1ms;
+  }
+}
