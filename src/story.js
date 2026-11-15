@@ -7,7 +7,7 @@ import * as THREE from "three";
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 const SHOTS = {
-  overview: { pos: v3(120, 86, 164), target: v3(14, 50, 0) },
+  overview: { pos: v3(128, 90, 180), target: v3(14, 50, 0) },
   lamp: { pos: v3(27, 20, 58), target: v3(0, 13, 2) },
   path: { pos: v3(74, 54, 118), target: v3(10, 46, 0) },
   egg: { pos: v3(27, 42, 50), target: v3(1.4, 38, 1.5) },
@@ -37,7 +37,7 @@ const BEATS = [
         ["判定", "D2 与 D5 两日谱"]
       ]
     },
-    say: "一枚正在孵化的鸡蛋，被一束连续光穿过。不破壳、不取样，只记录它吸收了哪些波长。",
+    say: "遮光暗箱里，一枚正在孵化的鸡蛋被一束连续光穿过。不破壳、不取样，只记录它吸收了哪些波长。",
     apply: (rig) => {
       rig.setExplode(false);
       rig.setXray(false);
@@ -75,14 +75,15 @@ const BEATS = [
       side: "left",
       tag: "光路",
       title: "光穿过蛋，再被收走",
-      lead: "透射式：灯在下，蛋在中，镜头在上",
+      lead: "暗箱内透射式：灯在下，蛋在中，镜头在上",
       rows: [
+        ["暗箱", "全封闭 · 无外部光"],
         ["镜头–蛋", "300 mm"],
         ["蛋位", "钝端朝上固定"],
         ["被挑掉的光", "就是信息"]
       ]
     },
-    say: "灯在下，蛋在中，镜头在上，相距三百毫米。被蛋挑掉的那部分光，就是信息。",
+    say: "暗箱里灯在下，蛋在中，镜头在上，相距三百毫米。被蛋挑掉的那部分光，就是信息。",
     apply: (rig) => {
       rig.setBeam(true);
       rig.setHighlight("platform");
@@ -139,7 +140,7 @@ const BEATS = [
       id: "s-sensor",
       anchor: "spectrometer",
       side: "right",
-      tag: "分光",
+      tag: "采集",
       title: "681 个数，光变成数字",
       stat: { value: "681", unit: "点", label: "340–1020 nm · 1 nm 步长" },
       rows: [
@@ -149,7 +150,7 @@ const BEATS = [
       ],
       chart: { kind: "spectrum", height: 78 }
     },
-    say: "光谱仪把它切成 681 个点，每点 1 纳米。到这一步，光变成了数字。",
+    say: "相机把它读成 681 个点，每点 1 纳米。到这一步，光变成了数字。",
     apply: (rig) => rig.setHighlight("spectrometer")
   },
   {

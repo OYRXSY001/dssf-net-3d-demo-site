@@ -923,7 +923,7 @@ export function createRig(scene, options = {}) {
       ["镜头–蛋距", "300 mm"],
       ["曝光", "890 ms"]
     ],
-    note: "可调焦镜头把透过种蛋的光耦合进上方成像光谱仪。"
+    note: "可调焦镜头把透过种蛋的光耦合进上方光谱相机。"
   });
 
   // 遮光罩：向下张开，挡住环境杂光
@@ -999,12 +999,12 @@ export function createRig(scene, options = {}) {
     lensPart.group.add(screw);
   });
 
-  /* 5 · 成像光谱仪（T3 传感器） */
+  /* 5 · 光谱相机（T3 传感器） */
   const sensorPart = makePart({
     id: "spectrometer",
-    name: "成像光谱仪 · T3 传感器",
-    en: "Imaging spectrometer · T3 compound sensor",
-    short: "光谱仪 / 传感器",
+    name: "光谱相机 · T3 传感器",
+    en: "Spectral camera · T3 compound sensor",
+    short: "光谱相机",
     anchor: [7.2, 82.6, 6.5],
     explodeY: 14,
     specs: [
@@ -1071,7 +1071,7 @@ export function createRig(scene, options = {}) {
     ctx.fillRect(18, 54, 40, 3);
     ctx.fillStyle = "rgba(190,212,224,0.55)";
     ctx.font = '16px "JetBrains Mono", Consolas, monospace';
-    ctx.fillText("IMAGING SPECTROGRAPH · T3", 18, 80);
+    ctx.fillText("SPECTRAL CAMERA · T3", 18, 80);
   });
   const badge = flat(new THREE.Mesh(new THREE.PlaneGeometry(7.4, 1.4), new THREE.MeshBasicMaterial({ map: badgeTex })));
   badge.position.set(-4.8, 79.6, 6.42);
@@ -1387,6 +1387,7 @@ export function createRig(scene, options = {}) {
     name: "孵化器（背景）",
     en: "Incubator · background",
     short: "孵化器",
+    hiddenHotspot: true,
     anchor: [-42, 24, -10.5],
     explodeY: 0,
     specs: [
@@ -1535,6 +1536,192 @@ export function createRig(scene, options = {}) {
     clip.position.set(5.6, y, -13.7 + i * 0.1);
     root.add(clip);
   });
+
+  /* 10 · 遮光暗箱（剖开 / 拆解示意）
+     实机采集时整条光路封闭在暗箱内：相机在上、种蛋居中、卤钨灯在下，箱内无外部光。
+     3D 只保留后墙与左墙，前 / 右两面剖开，顶盖落座，便于看清内部光路。 */
+  const enclosurePart = makePart({
+    id: "enclosure",
+    name: "遮光暗箱",
+    en: "Light-tight dark box · cutaway view",
+    short: "遮光暗箱",
+    anchor: [19.6, 98, -18.2],
+    explodeY: 0,
+    specs: [
+      ["结构", "全封闭遮光暗箱"],
+      ["相机", "顶部 · 同轴采集"],
+      ["种蛋", "中部 · 钝端朝上"],
+      ["光源", "底部 · 150 W 卤钨灯"],
+      ["环境", "采集时无外部光"]
+    ],
+    note: "实机采集时箱门关闭，箱内只有卤钨灯照明；画面为暗箱剖开 / 拆解示意，便于看清内部光路。"
+  });
+
+  const boxWallMat = matDark(0x161f28, 0.78, 0.16);
+  const boxSideMat = matDark(0x18222c, 0.76, 0.18);
+  const boxTrimMat = matMetal(0x5a6b78, 0.4, 0.72);
+  const boxInnerMat = matDark(0x0b1117, 0.82, 0.12);
+  // 大面积墙板不参与整体发光，选中时只让金属框线亮起
+  boxWallMat.userData.noHighlight = true;
+  boxSideMat.userData.noHighlight = true;
+  boxInnerMat.userData.noHighlight = true;
+
+  // 后墙 / 左墙均为实心哑光黑：黑箱不透明，只在前 / 右两面剖开
+  const boxBack = mesh(rbox(40, 100, 1.1, 0.22), boxWallMat);
+  boxBack.position.set(0, 54, -18.55);
+  boxBack.castShadow = false;
+  boxBack.receiveShadow = true;
+  enclosurePart.group.add(boxBack);
+
+  const boxLeft = mesh(rbox(1.1, 100, 34, 0.22), boxSideMat);
+  boxLeft.position.set(-19.95, 54, -1.3);
+  boxLeft.castShadow = false;
+  boxLeft.receiveShadow = true;
+  enclosurePart.group.add(boxLeft);
+
+  // 四角立柱 + 顶部框架：把“箱”的轮廓勾出来
+  const boxPosts = [
+    [-19.95, 15.6],
+    [-19.95, -18.55],
+    [19.95, 15.6],
+    [19.95, -18.55]
+  ];
+  boxPosts.forEach(([x, z]) => {
+    const post = mesh(rbox(1.5, 100, 1.5, 0.18), boxTrimMat);
+    post.position.set(x, 54, z);
+    post.castShadow = false;
+    post.receiveShadow = true;
+    enclosurePart.group.add(post);
+  });
+
+  [15.6, -18.55].forEach((z) => {
+    const beam = mesh(rbox(40, 1.5, 1.5, 0.16), boxTrimMat);
+    beam.position.set(0, 104, z);
+    beam.castShadow = false;
+    enclosurePart.group.add(beam);
+  });
+  [-19.95, 19.95].forEach((x) => {
+    const beam = mesh(rbox(1.5, 1.5, 35.6, 0.16), boxTrimMat);
+    beam.position.set(x, 104, -1.45);
+    beam.castShadow = false;
+    enclosurePart.group.add(beam);
+  });
+
+  // 底座边框：交代暗箱落在台面上的范围
+  [15.6, -18.55].forEach((z) => {
+    const beam = mesh(rbox(40, 1.2, 1.2, 0.14), boxTrimMat);
+    beam.position.set(0, 3.95, z);
+    beam.castShadow = false;
+    enclosurePart.group.add(beam);
+  });
+  [-19.95, 19.95].forEach((x) => {
+    const beam = mesh(rbox(1.2, 1.2, 35.6, 0.14), boxTrimMat);
+    beam.position.set(x, 3.95, -1.45);
+    beam.castShadow = false;
+    enclosurePart.group.add(beam);
+  });
+
+  // 顶盖：落在箱体上，用后铰链 / 前锁扣 / 密封条交代“这是一只真实的盖子”
+  const boxLid = new THREE.Group();
+  enclosurePart.group.add(boxLid);
+
+  const lidPanel = mesh(rbox(42, 1.6, 37, 0.3), boxWallMat);
+  lidPanel.castShadow = false;
+  lidPanel.receiveShadow = true;
+  boxLid.add(lidPanel);
+
+  const lidInner = mesh(rbox(38, 0.5, 33, 0.2), boxInnerMat);
+  lidInner.position.set(0, -1.05, 0);
+  lidInner.castShadow = false;
+  boxLid.add(lidInner);
+
+  const lidHandle = mesh(rbox(10, 1.1, 2.4, 0.3), boxTrimMat);
+  lidHandle.position.set(0, 1.3, 0);
+  lidHandle.castShadow = false;
+  boxLid.add(lidHandle);
+
+  boxLid.position.set(0, 105.6, -1.45);
+
+  // 密封条 + 后铰链 + 前锁扣：顶盖落座后不再悬空
+  const lidGasket = mesh(rbox(40.4, 0.16, 34.4, 0.06), boxInnerMat);
+  lidGasket.position.set(0, 104.8, -1.45);
+  lidGasket.castShadow = false;
+  enclosurePart.group.add(lidGasket);
+
+  [-12, 12].forEach((x) => {
+    const hinge = mesh(rbox(2.6, 1.2, 1.6, 0.2), boxTrimMat);
+    hinge.position.set(x, 105.2, -18.9);
+    hinge.castShadow = false;
+    enclosurePart.group.add(hinge);
+
+    const latch = mesh(rbox(2.2, 1.5, 1.1, 0.16), boxTrimMat);
+    latch.position.set(x, 104.7, 16.7);
+    latch.castShadow = false;
+    enclosurePart.group.add(latch);
+  });
+
+  // 盖沿金属包边，坐落后仍能把顶盖从箱体上分辨出来
+  [17.08, -19.98].forEach((z) => {
+    const bar = mesh(rbox(42.2, 0.55, 0.55, 0.12), boxTrimMat);
+    bar.position.set(0, 105.45, z);
+    bar.castShadow = false;
+    enclosurePart.group.add(bar);
+  });
+  [-21.08, 21.08].forEach((x) => {
+    const bar = mesh(rbox(0.55, 0.55, 37.1, 0.12), boxTrimMat);
+    bar.position.set(x, 105.45, -1.45);
+    bar.castShadow = false;
+    enclosurePart.group.add(bar);
+  });
+
+  // 前上沿的铭牌：暗箱的身份与“采集时全封闭”
+  const boxLabelTex = canvasTexture(1024, 160, (ctx, w, h) => {
+    ctx.fillStyle = "#0b1218";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(120,160,178,0.26)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(6, 6, w - 12, h - 12);
+    ctx.fillStyle = "rgba(53,224,200,0.9)";
+    ctx.fillRect(30, 30, 8, 100);
+    ctx.fillStyle = "#e9f2f7";
+    ctx.font = '600 72px "JetBrains Mono", Consolas, monospace';
+    ctx.fillText("DARK BOX", 62, 76);
+    ctx.fillStyle = "rgba(214,238,248,0.78)";
+    ctx.font = '42px "Noto Sans SC", sans-serif';
+    ctx.fillText("遮光暗箱 · 采集时全封闭", 62, 128);
+    ctx.fillStyle = "rgba(214,238,248,0.42)";
+    ctx.font = '20px "JetBrains Mono", Consolas, monospace';
+    ctx.fillText("NO AMBIENT LIGHT", w - 260, 128);
+  });
+  const boxLabel = flat(
+    new THREE.Mesh(
+      new THREE.PlaneGeometry(28, 4.4),
+      new THREE.MeshBasicMaterial({ map: boxLabelTex, toneMapped: false })
+    )
+  );
+  boxLabel.position.set(0, 101.4, 15.72);
+  enclosurePart.group.add(boxLabel);
+
+  const boxLabelBar = mesh(rbox(28, 0.7, 0.5, 0.12), boxTrimMat);
+  boxLabelBar.position.set(0, 103.95, 15.55);
+  boxLabelBar.castShadow = false;
+  enclosurePart.group.add(boxLabelBar);
+
+  // 暗箱内侧的极细灯带：把箱体轮廓从深色背景里勾出来
+  const boxLedMat = new THREE.MeshBasicMaterial({
+    color: 0x35e0c8,
+    transparent: true,
+    opacity: 0.42,
+    toneMapped: false
+  });
+  boxLedMat.userData.noHighlight = true;
+  const boxLed = flat(new THREE.Mesh(new THREE.BoxGeometry(34, 0.1, 0.1), boxLedMat));
+  boxLed.position.set(0, 100.6, -17.92);
+  enclosurePart.group.add(boxLed);
+
+  const boxStatus = flat(new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8), boxLedMat));
+  boxStatus.position.set(19.95, 96, 15.72);
+  enclosurePart.group.add(boxStatus);
 
   /* 光路 */
   const beamGroup = new THREE.Group();

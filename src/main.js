@@ -32,7 +32,7 @@ const earlyCover =
 document.body.classList.toggle("is-cover", earlyCover);
 
 const VIEW_COVER = { pos: new THREE.Vector3(140, 100, 194), target: new THREE.Vector3(-4, 54, 0) };
-const VIEW_DEVICE = { pos: new THREE.Vector3(120, 86, 164), target: new THREE.Vector3(14, 50, 0) };
+const VIEW_DEVICE = { pos: new THREE.Vector3(128, 90, 180), target: new THREE.Vector3(14, 50, 0) };
 
 /* 竖屏时把机位拉远，保证 1200 mm 台架完整入画 */
 function fitView(v) {
@@ -220,6 +220,7 @@ renderMonitor(1);
 
 const hotspotLayer = $("#hotspots");
 rig.parts.forEach((part) => {
+  if (part.hiddenHotspot) return;
   const el = document.createElement("button");
   el.type = "button";
   el.className = "hotspot";
@@ -295,16 +296,16 @@ function updateHotspots() {
 const pathCard = `
   <div class="part-head">
     <span class="part-index">00</span>
-    <div><h3>透射光路</h3><p>Transmission path · egg intact</p></div>
+    <div><h3>暗箱内 · 透射光路</h3><p>Inside the dark box · egg intact</p></div>
   </div>
   <ol class="path">
     <li><b>卤钨灯</b><span>150 W · 预热 30 min</span></li>
     <li><b>种蛋</b><span>钝端朝上 · 不破壳</span></li>
     <li><b>可调焦镜头</b><span>镜头–蛋 300 mm</span></li>
-    <li><b>成像光谱仪</b><span>340–1020 nm · 681 点</span></li>
+    <li><b>光谱相机</b><span>340–1020 nm · 681 点</span></li>
     <li><b>采集计算机</b><span>3 连测平均 · 12.5 s/枚</span></li>
   </ol>
-  <p class="note">点击任意部件或热点，查看论文中的对应参数。</p>
+  <p class="note">实机为全封闭遮光暗箱；画面为暗箱剖开 / 拆解示意。点击部件查看论文参数。</p>
 `;
 partCard.innerHTML = pathCard;
 
