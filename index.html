@@ -96,7 +96,7 @@
     <div class="placard-body" id="placard-body">
       <div class="placard-head">
         <span class="placard-kicker">FULL PROCESS / 全流程</span>
-        <span class="placard-tag">12 拍</span>
+        <span class="placard-tag">13 拍</span>
       </div>
       <h3>暗箱里，从一盏灯<br>到一枚判定</h3>
       <ol class="placard-steps">
@@ -107,7 +107,44 @@
         <li><b>05</b><span><strong>DSSF-Net</strong><em>D2 + D5 双日判定</em></span></li>
       </ol>
       <button class="placard-play" id="btn-placard-play" type="button"><span aria-hidden="true">▶</span> 播放全流程讲解 <kbd>F</kbd></button>
-      <p class="placard-note">全封闭遮光暗箱 · 点击此牌走完 12 拍</p>
+      <p class="placard-note">全封闭遮光暗箱 · 点击此牌走完 13 拍</p>
+    </div>
+  </aside>
+
+  <aside class="mech-console" id="mech-console" aria-label="机构控制">
+    <div class="mech-head">
+      <span class="mech-kicker">MECHANISM</span>
+      <span class="mech-title">机构控制</span>
+      <span class="mech-mode">MANUAL</span>
+      <button class="mech-fold" id="mech-fold" type="button" aria-expanded="true" aria-controls="mech-body" aria-label="收起机构控制" title="收起">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 7.5 6 4l3.5 3.5"/></svg>
+      </button>
+    </div>
+    <div class="mech-body" id="mech-body">
+      <div class="mech-front">
+        <div class="mech-front-head">
+          <span>前卷帘 <em>FRONT ROLL</em></span>
+          <output id="front-door-out" for="front-door">卷起</output>
+        </div>
+        <input class="mech-range" id="front-door" type="range" min="0" max="100" step="1" value="100" aria-label="前卷帘开度：0 为放下密封，100 为完全卷起">
+        <div class="mech-scale" aria-hidden="true"><span>放下 · 密封</span><span>卷起 · 观察</span></div>
+      </div>
+      <div class="mech-switches">
+        <button class="mech-switch" id="door-left" type="button" aria-pressed="false" title="左进蛋门：开 / 关">
+          <i class="mech-led" aria-hidden="true"></i><span>左进蛋门</span><em>关闭</em>
+        </button>
+        <button class="mech-switch" id="door-right" type="button" aria-pressed="false" title="右出蛋门：开 / 关">
+          <i class="mech-led" aria-hidden="true"></i><span>右出蛋门</span><em>关闭</em>
+        </button>
+        <button class="mech-switch" id="belt-power" type="button" aria-pressed="false" title="履带：运行 / 停止">
+          <i class="mech-led" aria-hidden="true"></i><span>履带</span><em>停止</em>
+        </button>
+      </div>
+      <div class="mech-actions">
+        <button class="mech-action" id="btn-feed-in" type="button" title="左门开 · 履带送蛋进箱 · 左门关"><span aria-hidden="true">→</span>进蛋演示</button>
+        <button class="mech-action" id="btn-feed-out" type="button" title="右门开 · 履带送蛋出箱 · 右门关"><span aria-hidden="true">→</span>出蛋演示</button>
+        <button class="mech-action is-quiet" id="btn-mech-shut" type="button" title="三扇门全部闭合，履带停止">全部闭合</button>
+      </div>
     </div>
   </aside>
 
@@ -143,7 +180,7 @@
 
 <div class="story-bar" id="story-bar" hidden>
   <span class="story-live" aria-hidden="true"></span>
-  <span class="story-count" id="story-count">01 / 12</span>
+  <span class="story-count" id="story-count">01 / 13</span>
   <div class="story-dots" id="story-dots" aria-hidden="true"></div>
   <div class="story-ctrl">
     <button class="story-btn" id="story-mute" aria-pressed="false" title="开关讲解语音">静音</button>
@@ -160,7 +197,7 @@
     <div>
       <p class="eyebrow">PROJECT DSSF · 01 / 04</p>
       <h2>装置拆解图</h2>
-      <p class="inspector-sub">密闭遮光暗箱 · 相机在上 / 种蛋在中 / 光源在下</p>
+      <p class="inspector-sub">密闭遮光暗箱 · 左进右出 · 相机在上 / 种蛋在中 / 光源在下</p>
     </div>
     <span class="status-dot" title="WebGL 运行中" aria-label="WebGL 运行中"></span>
   </div>

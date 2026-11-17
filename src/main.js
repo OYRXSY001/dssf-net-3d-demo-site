@@ -31,8 +31,8 @@ const earlyCover =
   !bootParams.has("autoplay");
 document.body.classList.toggle("is-cover", earlyCover);
 
-const VIEW_COVER = { pos: new THREE.Vector3(140, 100, 194), target: new THREE.Vector3(-4, 54, 0) };
-const VIEW_DEVICE = { pos: new THREE.Vector3(128, 90, 180), target: new THREE.Vector3(14, 50, 0) };
+const VIEW_COVER = { pos: new THREE.Vector3(78, 102, 212), target: new THREE.Vector3(-2, 54, 0) };
+const VIEW_DEVICE = { pos: new THREE.Vector3(52, 92, 205), target: new THREE.Vector3(0, 50, 0) };
 
 /* 竖屏时把机位拉远，保证 1200 mm 台架完整入画 */
 function fitView(v) {
@@ -59,6 +59,17 @@ const statusEl = $("#status");
 const xrayBadge = $("#xray-badge");
 const transportEl = $("#transport");
 const captionEl = $("#stage-caption");
+const mechConsole = $("#mech-console");
+const mechFold = $("#mech-fold");
+const mechMode = mechConsole?.querySelector(".mech-mode");
+const frontDoorRange = $("#front-door");
+const frontDoorOut = $("#front-door-out");
+const doorLeftBtn = $("#door-left");
+const doorRightBtn = $("#door-right");
+const beltPowerBtn = $("#belt-power");
+const feedInBtn = $("#btn-feed-in");
+const feedOutBtn = $("#btn-feed-out");
+const mechShutBtn = $("#btn-mech-shut");
 
 const SOURCE_META = {
   demo: { label: "代理模型 · 非论文权重", cls: "tag-demo" },
@@ -160,7 +171,7 @@ controls.saveState();
 
 /* 浅灰工作室：程序化柔光箱 HDRI + 无缝背景 + 主/补/轮廓光 */
 const studio = createStudio(renderer, scene, { benchLift });
-const rig = createRig(scene, { benchLift });
+const rig = createRig(scene, { benchLift, frontDoorOpen: !earlyCover });
 
 /* 渲染管线：MSAA + 时间累积，静止时收敛到完全停渲染 */
 const post = createTAA(renderer, scene, camera, { maxSamples: 32, exposure: 0.92 });
@@ -174,6 +185,7 @@ const state = {
   exploded: false,
   xray: false,
   scanning: false,
+  feeding: false,
   spinning: false,
   flowing: false,
   activeId: null,
@@ -215,6 +227,137 @@ function renderMonitor(p = 1) {
   monitor.texture.needsUpdate = true;
 }
 renderMonitor(1);
+
+/* ---------------- 机构控制台 ---------------- */
+
+let frontDragging = false;
+let lastMechSync = 0;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function setSwitchState(btn, on, label) {
+  if (!btn) return;
+  btn.classList.toggle("is-on", on);
+  btn.setAttribute("aria-pressed", String(on));
+  const em = btn.querySelector("em");
+  if (em) em.textContent = label;
+}
+
+function frontDoorLabel(pct) {
+  if (pct >= 97) return "卷起";
+  if (pct <= 3) return "放下";
+  return `${pct}%`;
+}
+
+function syncMech() {
+  if (!mechConsole) return;
+  const s = rig.getMechanismState();
+  const pct = Math.round(s.frontTarget * 100);
+  if (frontDoorRange && !frontDragging) frontDoorRange.value = String(pct);
+  if (frontDoorOut) frontDoorOut.textContent = frontDoorLabel(pct);
+  setSwitchState(doorLeftBtn, s.left.target > 0.5, s.left.target > 0.5 ? "开" : "关闭");
+  setSwitchState(doorRightBtn, s.right.target > 0.5, s.right.target > 0.5 ? "开" : "关闭");
+  setSwitchState(beltPowerBtn, s.belt, s.belt ? "运行" : "停止");
+}
+
+function setMechBusy(on) {
+  if (!mechConsole) return;
+  mechConsole.classList.toggle("is-busy", on);
+  if (mechMode) mechMode.textContent = on ? "AUTO" : "MANUAL";
+  [frontDoorRange, doorLeftBtn, doorRightBtn, beltPowerBtn, feedInBtn, feedOutBtn, mechShutBtn].forEach((el) => {
+    if (el) el.disabled = on;
+  });
+}
+
+function collapseMech(collapsed) {
+  if (!mechConsole || !mechFold) return;
+  mechConsole.classList.toggle("is-collapsed", collapsed);
+  mechFold.setAttribute("aria-expanded", String(!collapsed));
+  mechFold.setAttribute("aria-label", collapsed ? "展开机构控制" : "收起机构控制");
+  mechFold.title = collapsed ? "展开" : "收起";
+}
+
+async function runFeed(kind) {
+  if (state.scanning || state.feeding || story.isRunning()) return;
+  state.feeding = true;
+  setMechBusy(true);
+  const wasBelt = rig.getMechanismState().belt;
+  rig.cancelTransfer();
+  rig.setFrontDoor(true);
+  rig.setBelt(true);
+  try {
+    if (kind === "in") await rig.transferIn();
+    else await rig.transferOut();
+    await wait(620);
+  } finally {
+    // 若演示中途被全流程讲解接管，不要再把履带状态改回去
+    if (!story.isRunning()) rig.setBelt(wasBelt);
+    state.feeding = false;
+    setMechBusy(false);
+    syncMech();
+    post.markDirty();
+    hudDirty = true;
+  }
+}
+
+function shutAllDoors() {
+  if (state.scanning || state.feeding || story.isRunning()) return;
+  rig.cancelTransfer();
+  rig.setBelt(false);
+  rig.setFrontDoor(false);
+  syncMech();
+  post.markDirty();
+  hudDirty = true;
+  toast("三扇门闭合 · 暗箱恢复避光", 2200);
+}
+
+mechFold?.addEventListener("click", () => {
+  collapseMech(!mechConsole.classList.contains("is-collapsed"));
+});
+
+frontDoorRange?.addEventListener("pointerdown", () => { frontDragging = true; });
+window.addEventListener("pointerup", () => {
+  if (!frontDragging) return;
+  frontDragging = false;
+  syncMech();
+});
+frontDoorRange?.addEventListener("input", () => {
+  const pct = Number(frontDoorRange.value);
+  rig.setFrontDoorLevel(pct / 100);
+  if (frontDoorOut) frontDoorOut.textContent = frontDoorLabel(pct);
+  post.markDirty();
+  hudDirty = true;
+});
+
+doorLeftBtn?.addEventListener("click", () => {
+  if (state.scanning || state.feeding) return;
+  const s = rig.getMechanismState();
+  rig.setSideDoor(-1, s.left.target < 0.5);
+  syncMech();
+  post.markDirty();
+});
+doorRightBtn?.addEventListener("click", () => {
+  if (state.scanning || state.feeding) return;
+  const s = rig.getMechanismState();
+  rig.setSideDoor(1, s.right.target < 0.5);
+  syncMech();
+  post.markDirty();
+});
+beltPowerBtn?.addEventListener("click", () => {
+  if (state.scanning || state.feeding) return;
+  rig.setBelt(!rig.getMechanismState().belt);
+  syncMech();
+  post.markDirty();
+});
+feedInBtn?.addEventListener("click", () => runFeed("in"));
+feedOutBtn?.addEventListener("click", () => runFeed("out"));
+mechShutBtn?.addEventListener("click", shutAllDoors);
+
+const mechNarrow = window.matchMedia("(max-width: 900px)");
+if (mechNarrow.matches) collapseMech(true);
+mechNarrow.addEventListener?.("change", (e) => {
+  if (e.matches) collapseMech(true);
+});
+syncMech();
 
 /* ---------------- 热点 ---------------- */
 
@@ -591,12 +734,24 @@ function newEgg() {
 const waitFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
 async function runScan() {
-  if (state.scanning) return;
+  if (state.scanning || state.feeding || state.flowing) return;
   state.scanning = true;
   playBtn.disabled = true;
+  setMechBusy(true);
+  rig.cancelTransfer();
+  rig.setFrontDoor(true);
+  rig.setBelt(true);
   chart.setProgress(0);
   renderMonitor(0);
   rig.setScan(0);
+
+  // 进蛋 → 左门关闭 → 密封避光；出蛋时右门打开
+  statusEl.textContent = "左门打开 · 进蛋…";
+  await rig.transferIn();
+  rig.setBelt(false);
+  statusEl.textContent = "左门关闭 · 密封避光…";
+  await new Promise((resolve) => setTimeout(resolve, 260));
+
   statusEl.textContent = "白 / 暗参考校正…";
 
   const t0 = performance.now();
@@ -618,6 +773,11 @@ async function runScan() {
   }
 
   rig.setScan(null);
+  rig.setBelt(true);
+  statusEl.textContent = "右门打开 · 出蛋…";
+  await rig.transferOut();
+  rig.setBelt(false);
+
   statusEl.textContent = "DSSF-Net 推理中…";
   const pred = await predict(state.sample, { mode: state.mode, delay: params.has("fast") ? 0 : 420 });
   if (pred.source === "paper" || !Number.isFinite(pred.pMale)) {
@@ -631,6 +791,8 @@ async function runScan() {
   chart.setProgress(1);
   renderMonitor(1);
   state.scanning = false;
+  setMechBusy(false);
+  syncMech();
   playBtn.disabled = false;
   playLabel.textContent = "重新采集";
   progress.style.width = "100%";
@@ -869,6 +1031,7 @@ function enterStage() {
   document.body.classList.remove("is-cover");
   transportEl.hidden = false;
   captionEl.hidden = false;
+  rig.setFrontDoor(true);
   flyTo(fitView(VIEW_DEVICE).pos, VIEW_DEVICE.target, 1.05);
   onResize();
   window.setTimeout(() => {
@@ -879,18 +1042,9 @@ function enterStage() {
   hudDirty = true;
 }
 
-$("#btn-enter")?.addEventListener("click", () => {
-  enterStage();
-  toast("已进入装置 · 点击任意部件查看论文参数", 2600);
-});
-$("#btn-cover-story")?.addEventListener("click", () => {
-  enterStage();
-  window.setTimeout(() => story.play(), 1180);
-});
-
-$("#btn-flow").addEventListener("click", () => {
-  if (story.isRunning()) {
-    story.stop();
+function playStory() {
+  if (state.scanning || state.feeding) {
+    toast("采集 / 进出蛋演示进行中，完成后再播放讲解", 2200);
     return;
   }
   if (document.body.classList.contains("is-cover")) {
@@ -899,11 +1053,25 @@ $("#btn-flow").addEventListener("click", () => {
   } else {
     story.play();
   }
+}
+
+$("#btn-enter")?.addEventListener("click", () => {
+  enterStage();
+  toast("已进入装置 · 点击任意部件查看论文参数", 2600);
+});
+$("#btn-cover-story")?.addEventListener("click", playStory);
+
+$("#btn-flow").addEventListener("click", () => {
+  if (story.isRunning()) {
+    story.stop();
+    return;
+  }
+  playStory();
 });
 
 $("#btn-placard-play")?.addEventListener("click", () => {
   if (story.isRunning()) story.stop();
-  else story.play();
+  else playStory();
 });
 
 const flowPlacard = $("#flow-placard");
@@ -943,7 +1111,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "f" || e.key === "F") {
     e.preventDefault();
     if (story.isRunning()) story.stop();
-    else story.play();
+    else playStory();
     return;
   }
   if (state.flowing) {
@@ -1073,6 +1241,10 @@ function tick(now) {
   if (moved || animating || hudDirty) {
     updateHotspots();
     hudDirty = false;
+  }
+  if (mechConsole && (animating || now - lastMechSync > 800) && now - lastMechSync > 120) {
+    syncMech();
+    lastMechSync = now;
   }
   // 静止且累积收敛后 post.render 直接返回，GPU 零开销
   post.render(moved || animating);

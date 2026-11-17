@@ -7,15 +7,16 @@ import * as THREE from "three";
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 const SHOTS = {
-  overview: { pos: v3(128, 90, 180), target: v3(14, 50, 0) },
+  overview: { pos: v3(52, 92, 205), target: v3(0, 50, 0) },
   lamp: { pos: v3(27, 20, 58), target: v3(0, 13, 2) },
   path: { pos: v3(74, 54, 118), target: v3(10, 46, 0) },
-  egg: { pos: v3(27, 42, 50), target: v3(1.4, 38, 1.5) },
-  lens: { pos: v3(30, 73, 57), target: v3(6, 71, 2.6) },
-  sensor: { pos: v3(32, 81, 60), target: v3(8, 80, 4) },
-  ccd: { pos: v3(27, 92, 58), target: v3(4, 90, 3) },
-  computer: { pos: v3(92, 46, 88), target: v3(42, 24, 0) },
-  close: { pos: v3(140, 100, 194), target: v3(-4, 54, 0) }
+  egg: { pos: v3(27, 51, 50), target: v3(1.4, 47, 1.5) },
+  lens: { pos: v3(30, 82, 57), target: v3(6, 80, 2.6) },
+  sensor: { pos: v3(32, 90, 60), target: v3(8, 89, 4) },
+  ccd: { pos: v3(27, 101, 58), target: v3(4, 99, 3) },
+  computer: { pos: v3(92, 46, 88), target: v3(42, 24, -12) },
+  transfer: { pos: v3(42, 86, 198), target: v3(0, 48, 0) },
+  close: { pos: v3(80, 106, 212), target: v3(0, 58, 0) }
 };
 
 const BEATS = [
@@ -176,6 +177,39 @@ const BEATS = [
     }
   },
   {
+    id: "transfer",
+    shot: "transfer",
+    card: {
+      id: "s-transfer",
+      anchor: "conveyor",
+      side: "top",
+      tag: "进出蛋 · 自动门",
+      title: "测完就出，下一枚再进",
+      lead: "左进右出，小门落回即重新避光",
+      rows: [
+        ["左门", "进蛋后落下 · 密封"],
+        ["右门", "卷帘开 · 出蛋"],
+        ["节拍", "≈12.5 s/枚"]
+      ]
+    },
+    say: "测完的蛋从右门送出，下一枚再从左边进来；小门落回，箱内重新密封。",
+    apply: (rig) => {
+      rig.setScan(null);
+      rig.setBeam(true);
+      rig.setXray(false);
+      rig.setHighlight("none");
+    },
+    motion: async (rig, sleep, alive) => {
+      await sleep(420);
+      if (!alive()) return;
+      await rig.transferOut();
+      if (!alive()) return;
+      await sleep(520);
+      if (!alive()) return;
+      await rig.transferIn();
+    }
+  },
+  {
     id: "day",
     shot: "egg",
     card: {
@@ -284,6 +318,7 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
 
   let running = false;
   let token = 0;
+  let motionToken = 0;
   let index = -1;
   let shot = null;
   let saved = null;
@@ -320,7 +355,7 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
 
   function flyTo(key, dur = 0.95) {
     const to = SHOTS[key] || SHOTS.overview;
-    // 竖屏时把机位拉远，否则 12 拍特写会只剩局部
+    // 竖屏时把机位拉远，否则 13 拍特写会只剩局部
     const aspect = Number(camera.aspect) || 1;
     const k = aspect >= 0.9 ? 1 : Math.min(1.75, 1 + (0.9 - aspect) * 1.25);
     const toPos = to.target.clone().add(to.pos.clone().sub(to.target).multiplyScalar(k));
@@ -367,6 +402,13 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
       b.apply?.(rig);
       if (b.shot) flyTo(b.shot);
 
+      // 每拍各自的动作协程：切拍 / 结束时自动失效，不会把门留在半开
+      motionToken += 1;
+      const myMotion = motionToken;
+      if (b.motion) {
+        b.motion(rig, sleep, () => my === token && myMotion === motionToken).catch(() => {});
+      }
+
       // 上一张卡片先退场，再上本拍卡片，避免叠成一片
       const prev = i > 0 ? BEATS[i - 1].card.id : null;
       if (prev) cards.hide(prev);
@@ -385,7 +427,11 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
 
   function finish() {
     running = false;
+    motionToken += 1;
     controls.enabled = true;
+    rig.cancelTransfer();
+    rig.setBelt(false);
+    rig.setDoors(false, false);
     // 收尾：清掉最后一张卡，镜头退回讲解前的位置，留一个完整的装置全景
     cards.hideAll();
     // 演出态解除：inspector / transport / hotspots 要回来
@@ -416,9 +462,14 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
     if (running) return;
     running = true;
     token += 1;
+    motionToken += 1;
     index = -1;
     saved = { pos: camera.position.clone(), target: controls.target.clone() };
     controls.enabled = false;
+    // 讲解全程履带保持运转；前卷帘若被手动放下，开场顺势卷起
+    rig.cancelTransfer();
+    rig.setFrontDoor(true);
+    rig.setBelt(true);
     setStep(1);
     document.body.dataset.story = "1";
     if (nextBtn) nextBtn.hidden = false;
@@ -438,11 +489,14 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
     }
     running = false;
     token += 1;
+    motionToken += 1;
     flush();
     guide.stop();
     cards.hideAll();
     delete document.body.dataset.story;
     controls.enabled = true;
+    rig.cancelTransfer();
+    rig.setBelt(false);
     rig.setHighlight("none");
     rig.setXray(false);
     rig.setScan(null);
@@ -490,7 +544,8 @@ export function createStory({ camera, controls, rig, cards, guide, setStep, ui, 
     muteBtn.setAttribute("aria-pressed", String(next));
   });
   nextBtn?.addEventListener("click", () => {
-    // 跳到下一拍：停语音 + 放掉等待
+    // 跳到下一拍：停语音 + 放掉等待；同时让本拍的动作协程失效
+    motionToken += 1;
     guide.stop();
     flush();
   });

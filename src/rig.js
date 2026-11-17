@@ -14,6 +14,10 @@ const C = {
 
 const M = createMaterials();
 
+/* 按 v5 装配图：光谱仪固定在顶部，蛋托抬高到离箱底约 420 mm，
+   镜头—蛋顶保持 300 mm；整段光学组件相对原开放台架抬升 92 mm（1 单位 = 10 mm）。 */
+const OPTICAL_LIFT = 9.2;
+
 /* 冷蓝色相统一压成中性石墨/铝灰：浅色影棚里配件带蓝味会显得像示意图 */
 function neutral(color) {
   const c = new THREE.Color(color);
@@ -436,67 +440,6 @@ export function createRig(scene, options = {}) {
     scene.add(legs);
   }
 
-  /* 光学模块支架（结构件，非交互）：立柱 + 悬臂 + 底座，避免镜头/相机悬空（对照设计图 2） */
-  const standMat = matMetal(0x6c7784, 0.36, 0.9);
-  const standPost = mesh(rbox(3.4, 92, 3.4, 0.4), standMat);
-  standPost.position.set(0, 49, -16);
-  standPost.castShadow = true;
-  standPost.receiveShadow = true;
-  root.add(standPost);
-
-  const standArm = mesh(rbox(2.6, 3, 10.5, 0.35), standMat);
-  standArm.position.set(0, 84, -10.75);
-  standArm.castShadow = true;
-  standArm.receiveShadow = true;
-  root.add(standArm);
-
-  // 立柱侧面的刻度条与品牌牌
-  const scaleTex = canvasTexture(256, 1024, (ctx, w, h) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(10,18,24,0.92)";
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = "rgba(214,238,248,0.32)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 60; i += 1) {
-      const y = 20 + i * 16;
-      const long = i % 5 === 0;
-      ctx.beginPath();
-      ctx.moveTo(30, y);
-      ctx.lineTo(long ? 100 : 70, y);
-      ctx.stroke();
-    }
-    ctx.fillStyle = "rgba(214,238,248,0.55)";
-    ctx.font = '18px "JetBrains Mono", Consolas, monospace';
-    ctx.fillText("mm", 30, h - 26);
-  });
-  const scaleStrip = flat(new THREE.Mesh(new THREE.PlaneGeometry(1.1, 54), new THREE.MeshBasicMaterial({ map: scaleTex, transparent: true })));
-  scaleStrip.position.set(1.78, 49, -14.27);
-  scaleStrip.rotation.y = Math.PI / 2;
-  root.add(scaleStrip);
-
-  const standBrandTex = canvasTexture(512, 128, (ctx, w, h) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(10,18,24,0.94)";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(235,246,252,0.86)";
-    ctx.font = '600 34px "JetBrains Mono", Consolas, monospace';
-    ctx.fillText("DSSF · OPTICAL", 20, 52);
-    ctx.fillStyle = "rgba(53,224,200,0.9)";
-    ctx.fillRect(20, 66, 48, 3);
-    ctx.fillStyle = "rgba(190,212,224,0.55)";
-    ctx.font = '18px "JetBrains Mono", Consolas, monospace';
-    ctx.fillText("VIS–NIR TRANSMISSION RIG", 20, 100);
-  });
-  const standBrand = flat(new THREE.Mesh(new THREE.PlaneGeometry(7.2, 1.8), new THREE.MeshBasicMaterial({ map: standBrandTex })));
-  standBrand.position.set(0, 58, -14.28);
-  root.add(standBrand);
-
-  const standBase = mesh(rbox(13, 2.4, 13, 0.5), matDark(0x1a2438, 0.5, 0.5));
-  standBase.position.set(0, 4.2, -17);
-  standBase.castShadow = false;
-  standBase.receiveShadow = true;
-  root.add(standBase);
-
   /* 1 · 卤钨灯 */
   const lampPart = makePart({
     id: "lamp",
@@ -586,16 +529,21 @@ export function createRig(scene, options = {}) {
     name: "蛋托 + 样品平台",
     en: "Three-point egg cradle & sample stage",
     short: "蛋托 / 平台",
-    anchor: [6.6, 34.6, 6.6],
+    anchor: [6.6, 43.8, 6.6],
     explodeY: 2,
     specs: [
-      ["平台", "200 × 200 × 90 mm"],
-      ["台架", "1200 × 750 mm"],
+      ["平台", "200 × 200 mm"],
+      ["安装", "左 / 后壁托架"],
       ["定位", "三点定位 · 铝合金"],
       ["光程", "镜头–蛋 300 mm"]
     ],
     note: "平台中心开孔让光路穿过；三点装夹保证蛋位重复性。"
   });
+
+  /* 台面以上整体抬升：v5 中蛋托顶面约在箱底上方 420 mm */
+  const stageLift = new THREE.Group();
+  stageLift.position.y = OPTICAL_LIFT;
+  platformPart.group.add(stageLift);
 
   const plateShape = (() => {
     const w = 22;
@@ -630,13 +578,13 @@ export function createRig(scene, options = {}) {
   plate.position.y = 31.45;
   plate.castShadow = true;
   plate.receiveShadow = true;
-  platformPart.group.add(plate);
+  stageLift.add(plate);
 
   // 台面四周的铝制包边
   for (const [dx, dz, w, d] of [[0, -11, 22, 0.5], [0, 11, 22, 0.5], [-11, 0, 0.5, 21], [11, 0, 0.5, 21]]) {
     const edge = mesh(rbox(w, 0.32, d, 0.1), matMetal(0xaab6c1, 0.3, 0.88));
     edge.position.set(dx, 33.72, dz);
-    platformPart.group.add(edge);
+    stageLift.add(edge);
   }
 
   // 深色阳极氧化台面
@@ -656,7 +604,7 @@ export function createRig(scene, options = {}) {
   );
   plateFace.rotation.x = -Math.PI / 2;
   plateFace.position.y = 33.68;
-  platformPart.group.add(plateFace);
+  stageLift.add(plateFace);
 
   // 刻度和定位环
   const stageTickMat = new THREE.MeshBasicMaterial({ color: 0x9fb4c4, transparent: true, opacity: 0.5 });
@@ -673,7 +621,7 @@ export function createRig(scene, options = {}) {
   }
   ticks.instanceMatrix.needsUpdate = true;
   ticks.castShadow = false;
-  platformPart.group.add(ticks);
+  stageLift.add(ticks);
 
   const holeRing = flat(
     new THREE.Mesh(
@@ -683,7 +631,7 @@ export function createRig(scene, options = {}) {
   );
   holeRing.rotation.x = Math.PI / 2;
   holeRing.position.y = 33.72;
-  platformPart.group.add(holeRing);
+  stageLift.add(holeRing);
 
   // 孔内深色衬底：给蛋一个暗背景
   const holeWell = mesh(
@@ -691,7 +639,7 @@ export function createRig(scene, options = {}) {
     new THREE.MeshStandardMaterial({ color: 0x0b1218, roughness: 0.9, metalness: 0.1 })
   );
   holeWell.position.y = 31.2;
-  platformPart.group.add(holeWell);
+  stageLift.add(holeWell);
 
   // 蛋托橡胶圈
   const eggGasket = mesh(
@@ -700,62 +648,33 @@ export function createRig(scene, options = {}) {
   );
   eggGasket.rotation.x = Math.PI / 2;
   eggGasket.position.y = 34.35;
-  platformPart.group.add(eggGasket);
+  stageLift.add(eggGasket);
 
-  // 四根立柱 + 底部横梁 + 安装脚
-  const legMat = matMetal(0x77828e, 0.32, 0.9);
-  const postPositions = [
-    [-8.8, -8.8],
-    [8.8, -8.8],
-    [-8.8, 8.8],
-    [8.8, 8.8]
-  ];
-  const longPosts = new THREE.InstancedMesh(new THREE.BoxGeometry(1.1, 20.4, 1.1), legMat, 4);
-  const shortPosts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.85, 7.6, 0.85), legMat, 4);
-  postPositions.forEach(([x, z], i) => {
-    dummy.position.set(x, 13.5, z);
-    dummy.rotation.set(0, 0, 0);
-    dummy.scale.set(1, 1, 1);
-    dummy.updateMatrix();
-    longPosts.setMatrixAt(i, dummy.matrix);
-    dummy.position.set(x, 27.8, z);
-    dummy.updateMatrix();
-    shortPosts.setMatrixAt(i, dummy.matrix);
+  // 样品台支撑：从暗箱左墙 / 后墙伸出的 L 形托架（v5 图上不落地）
+  const stageBracketMat = matMetal(0x77828e, 0.32, 0.9);
+  const stageRailY = 39.35;
+  const leftRail = mesh(rbox(4.2, 1.2, 3.0, 0.2), stageBracketMat);
+  leftRail.position.set(-13.1, stageRailY, 0);
+  leftRail.castShadow = false;
+  platformPart.group.add(leftRail);
+  const backRail = mesh(rbox(3.0, 1.2, 4.2, 0.2), stageBracketMat);
+  backRail.position.set(0, stageRailY, -13.1);
+  backRail.castShadow = false;
+  platformPart.group.add(backRail);
+  [-1, 1].forEach((sz) => {
+    const gusset = mesh(rbox(0.9, 3.4, 2.4, 0.15), stageBracketMat);
+    gusset.position.set(-14.4, 37.55, sz * 7.2);
+    gusset.rotation.z = -0.18;
+    gusset.castShadow = false;
+    platformPart.group.add(gusset);
   });
-  longPosts.instanceMatrix.needsUpdate = true;
-  shortPosts.instanceMatrix.needsUpdate = true;
-  longPosts.castShadow = true;
-  shortPosts.castShadow = true;
-  platformPart.group.add(longPosts, shortPosts);
-
-  const stageFootMat = matDark(0x151d25, 0.5, 0.42);
-  for (const [x, z] of postPositions) {
-    const foot = mesh(rbox(2.4, 0.5, 2.4, 0.2), stageFootMat);
-    foot.position.set(x, 3.28, z);
-    foot.castShadow = false;
-    foot.receiveShadow = true;
-    platformPart.group.add(foot);
-    const bolt = mesh(cyl(0.3, 0.3, 0.35, 12), matMetal(0xaab6c2, 0.3, 0.9));
-    bolt.position.set(x, 3.6, z);
-    platformPart.group.add(bolt);
-  }
-
-  // 角撑：让平台看起来是装出来的，而不是四根棍
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    const brace = mesh(rbox(0.38, 4.2, 0.38, 0.1), matMetal(0x5b6772, 0.4, 0.78));
-    brace.position.set(sx * 7.1, 30.6, sz * 8.8);
-    brace.rotation.z = sx * 0.62;
-    brace.rotation.x = sz * 0.18;
-    platformPart.group.add(brace);
-  }
-
-  // 下框：四根横梁，不挡中心光路
-  for (const [x, z, w, d] of [[0, -8.8, 18.4, 0.4], [0, 8.8, 18.4, 0.4], [-8.8, 0, 0.4, 18.4], [8.8, 0, 0.4, 18.4]]) {
-    const beam = mesh(rbox(w, 0.5, d, 0.15), matMetal(0x5f6b78, 0.38, 0.82));
-    beam.position.set(x, 23.4, z);
-    beam.castShadow = false;
-    platformPart.group.add(beam);
-  }
+  [-1, 1].forEach((sx) => {
+    const gusset = mesh(rbox(2.4, 3.4, 0.9, 0.15), stageBracketMat);
+    gusset.position.set(sx * 7.2, 37.55, -14.4);
+    gusset.rotation.x = 0.18;
+    gusset.castShadow = false;
+    platformPart.group.add(gusset);
+  });
 
   // 三点定位蛋托：径向夹爪 + 青色调节轮
   const cradleMat = matMetal(0x9aa7b4, 0.26, 0.95);
@@ -777,7 +696,7 @@ export function createRig(scene, options = {}) {
     slide.add(stem, arm, pad, knob);
     bracket.add(slide);
     bracket.rotation.y = -angle;
-    platformPart.group.add(bracket);
+    stageLift.add(bracket);
     cradleSlides.push(slide);
   });
 
@@ -794,7 +713,7 @@ export function createRig(scene, options = {}) {
     })
   );
   bubble.position.set(8.2, 33.78, 8.2);
-  platformPart.group.add(bubble);
+  stageLift.add(bubble);
 
   const stageTex = canvasTexture(512, 96, (ctx, w, h) => {
     ctx.fillStyle = "#111920";
@@ -810,11 +729,12 @@ export function createRig(scene, options = {}) {
   });
   const stagePlate = flat(new THREE.Mesh(new THREE.PlaneGeometry(9.6, 1.8), new THREE.MeshBasicMaterial({ map: stageTex })));
   stagePlate.position.set(0, 32.3, 11.16);
-  platformPart.group.add(stagePlate);
+  stageLift.add(stagePlate);
 
   /* 3 · 种蛋 */
   const eggPart = makePart({
     id: "egg",
+    // 视觉上跟随 v5 的蛋托高度抬升
     name: "种蛋（粉壳）",
     en: "Pink-shelled hatching egg",
     short: "种蛋",
@@ -828,6 +748,9 @@ export function createRig(scene, options = {}) {
     ],
     note: "真实测量只用透射强度；蛋壳纹理由程序生成，不贴真实照片。"
   });
+
+  eggPart.group.position.y = OPTICAL_LIFT;
+  eggPart.baseY = OPTICAL_LIFT;
 
   const eggHeight = 6.4;
   const eggPoints = [];
@@ -926,6 +849,9 @@ export function createRig(scene, options = {}) {
     note: "可调焦镜头把透过种蛋的光耦合进上方光谱相机。"
   });
 
+  lensPart.group.position.y = OPTICAL_LIFT;
+  lensPart.baseY = OPTICAL_LIFT;
+
   // 遮光罩：向下张开，挡住环境杂光
   const lensHood = mesh(new THREE.CylinderGeometry(4.1, 5.4, 2.2, 48, 1, true), matDark(0x1a232c, 0.46, 0.45));
   lensHood.position.y = 69.0;
@@ -1015,6 +941,9 @@ export function createRig(scene, options = {}) {
     ],
     note: "681 个波长点全部进入模型；论文未做平滑、SNV 或 MSC。"
   });
+
+  sensorPart.group.position.y = OPTICAL_LIFT;
+  sensorPart.baseY = OPTICAL_LIFT;
 
   const body = mesh(rbox(23, 14, 12, 0.7), matPlastic(0xdde5ec, 0.4, 0.35));
   body.position.y = 84.0;
@@ -1111,6 +1040,9 @@ export function createRig(scene, options = {}) {
     note: "三次连续光谱先平均，再对同日两次测量做平均。"
   });
 
+  ccdPart.group.position.y = OPTICAL_LIFT;
+  ccdPart.baseY = OPTICAL_LIFT;
+
   const ccdHead = new THREE.Group();
   ccdPart.group.add(ccdHead);
 
@@ -1148,6 +1080,9 @@ export function createRig(scene, options = {}) {
     ],
     note: "数据落盘后按蛋号纵向关联；D1–D7 共 14 个采样时间点。"
   });
+
+  // 把采集电脑整体后移，给右侧履带让出操作空间
+  pcPart.group.position.z = -12;
 
   const monitorCanvas = document.createElement("canvas");
   monitorCanvas.width = 640;
@@ -1513,11 +1448,13 @@ export function createRig(scene, options = {}) {
 
   /* 线缆（装饰） */
   const cableCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(10.6, 84.2, -4.6),
-    new THREE.Vector3(11.4, 80.5, -9.5),
-    new THREE.Vector3(7.2, 66, -12.8),
-    new THREE.Vector3(4.6, 46, -13.2),
-    new THREE.Vector3(4.2, 26, -13.6),
+    new THREE.Vector3(10.6, 93.2, -4.6),
+    new THREE.Vector3(10.6, 93.2, -10.0),
+    new THREE.Vector3(10.6, 93.2, -14.6),
+    new THREE.Vector3(10.0, 84.0, -14.8),
+    new THREE.Vector3(7.2, 66, -14.6),
+    new THREE.Vector3(4.6, 46, -14.4),
+    new THREE.Vector3(4.2, 26, -14.2),
     new THREE.Vector3(8.5, 9.5, -17.5),
     new THREE.Vector3(23, 6.4, -23.5),
     new THREE.Vector3(41, 7.2, -21.5),
@@ -1530,10 +1467,10 @@ export function createRig(scene, options = {}) {
   cable.castShadow = false;
   root.add(cable);
 
-  // 线缆夹：把线固定在立柱侧后方
+  // 线缆夹：把线固定在暗箱后墙上
   [62, 44, 27].forEach((y, i) => {
     const clip = mesh(rbox(1.6, 0.6, 1.1, 0.2), matDark(0x151d25, 0.5, 0.5));
-    clip.position.set(5.6, y, -13.7 + i * 0.1);
+    clip.position.set(5.6, y, -14.0 + i * 0.1);
     root.add(clip);
   });
 
@@ -1545,17 +1482,29 @@ export function createRig(scene, options = {}) {
     name: "遮光暗箱",
     en: "Light-tight dark box · cutaway view",
     short: "遮光暗箱",
-    anchor: [19.6, 98, -18.2],
+    anchor: [14.5, 98, -14.5],
     explodeY: 0,
     specs: [
       ["结构", "全封闭遮光暗箱"],
-      ["相机", "顶部 · 同轴采集"],
+      ["相机", "顶部固定 · 同轴采集"],
       ["种蛋", "中部 · 钝端朝上"],
       ["光源", "底部 · 150 W 卤钨灯"],
-      ["环境", "采集时无外部光"]
+      ["前门", "卷帘式 · 采集时放下"],
+      ["小门", "左进右出 · 自动开合"],
+      ["环境", "左门关闭后无外部光"]
     ],
-    note: "实机采集时箱门关闭，箱内只有卤钨灯照明；画面为暗箱剖开 / 拆解示意，便于看清内部光路。"
+    note: "实机采集时前门放下、左右小门关闭，箱内只有卤钨灯照明；画面为暗箱剖开 / 拆解示意。"
   });
+
+  const BOX_W = 30;
+  const BOX_D = 30;
+  const BOX_TOP = 104;
+  const BOX_BOTTOM = 4;
+  const BOX_MID = (BOX_TOP + BOX_BOTTOM) / 2;
+  const BOX_HALF = BOX_W / 2;
+  const BOX_EDGE = BOX_HALF + 0.55;
+  const PORT_Y = 46;
+  const PORT_HALF = 4;
 
   const boxWallMat = matDark(0x161f28, 0.78, 0.16);
   const boxSideMat = matDark(0x18222c, 0.76, 0.18);
@@ -1567,56 +1516,100 @@ export function createRig(scene, options = {}) {
   boxInnerMat.userData.noHighlight = true;
 
   // 后墙 / 左墙均为实心哑光黑：黑箱不透明，只在前 / 右两面剖开
-  const boxBack = mesh(rbox(40, 100, 1.1, 0.22), boxWallMat);
-  boxBack.position.set(0, 54, -18.55);
+  const boxBack = mesh(rbox(BOX_W, 100, 1.1, 0.22), boxWallMat);
+  boxBack.position.set(0, BOX_MID, -BOX_EDGE);
   boxBack.castShadow = false;
   boxBack.receiveShadow = true;
   enclosurePart.group.add(boxBack);
 
-  const boxLeft = mesh(rbox(1.1, 100, 34, 0.22), boxSideMat);
-  boxLeft.position.set(-19.95, 54, -1.3);
-  boxLeft.castShadow = false;
-  boxLeft.receiveShadow = true;
-  enclosurePart.group.add(boxLeft);
+  // 左墙在蛋托高度开 80 × 80 mm 的进出蛋口；墙体分成四段，留出真实洞口
+  const leftWallTop = mesh(rbox(1.1, BOX_TOP - (PORT_Y + PORT_HALF), BOX_D, 0.22), boxSideMat);
+  leftWallTop.position.set(-BOX_EDGE, (BOX_TOP + PORT_Y + PORT_HALF) / 2, 0);
+  leftWallTop.castShadow = false;
+  leftWallTop.receiveShadow = true;
+  enclosurePart.group.add(leftWallTop);
+
+  const leftWallBottom = mesh(rbox(1.1, (PORT_Y - PORT_HALF) - BOX_BOTTOM, BOX_D, 0.22), boxSideMat);
+  leftWallBottom.position.set(-BOX_EDGE, (BOX_BOTTOM + PORT_Y - PORT_HALF) / 2, 0);
+  leftWallBottom.castShadow = false;
+  leftWallBottom.receiveShadow = true;
+  enclosurePart.group.add(leftWallBottom);
+
+  const leftWallFront = mesh(rbox(1.1, PORT_HALF * 2, (BOX_D / 2) - PORT_HALF, 0.22), boxSideMat);
+  leftWallFront.position.set(-BOX_EDGE, PORT_Y, (BOX_D / 4) + PORT_HALF / 2);
+  leftWallFront.castShadow = false;
+  leftWallFront.receiveShadow = true;
+  enclosurePart.group.add(leftWallFront);
+
+  const leftWallBack = mesh(rbox(1.1, PORT_HALF * 2, (BOX_D / 2) - PORT_HALF, 0.22), boxSideMat);
+  leftWallBack.position.set(-BOX_EDGE, PORT_Y, -(BOX_D / 4) - PORT_HALF / 2);
+  leftWallBack.castShadow = false;
+  leftWallBack.receiveShadow = true;
+  enclosurePart.group.add(leftWallBack);
+
+  // 右墙同样留 80 × 80 mm 出蛋口；其余补成实心哑光黑板
+  const rightWallTop = mesh(rbox(1.1, BOX_TOP - (PORT_Y + PORT_HALF), BOX_D, 0.22), boxSideMat);
+  rightWallTop.position.set(BOX_EDGE, (BOX_TOP + PORT_Y + PORT_HALF) / 2, 0);
+  rightWallTop.castShadow = false;
+  rightWallTop.receiveShadow = true;
+  enclosurePart.group.add(rightWallTop);
+
+  const rightWallBottom = mesh(rbox(1.1, (PORT_Y - PORT_HALF) - BOX_BOTTOM, BOX_D, 0.22), boxSideMat);
+  rightWallBottom.position.set(BOX_EDGE, (BOX_BOTTOM + PORT_Y - PORT_HALF) / 2, 0);
+  rightWallBottom.castShadow = false;
+  rightWallBottom.receiveShadow = true;
+  enclosurePart.group.add(rightWallBottom);
+
+  const rightWallFront = mesh(rbox(1.1, PORT_HALF * 2, (BOX_D / 2) - PORT_HALF, 0.22), boxSideMat);
+  rightWallFront.position.set(BOX_EDGE, PORT_Y, (BOX_D / 4) + PORT_HALF / 2);
+  rightWallFront.castShadow = false;
+  rightWallFront.receiveShadow = true;
+  enclosurePart.group.add(rightWallFront);
+
+  const rightWallBack = mesh(rbox(1.1, PORT_HALF * 2, (BOX_D / 2) - PORT_HALF, 0.22), boxSideMat);
+  rightWallBack.position.set(BOX_EDGE, PORT_Y, -(BOX_D / 4) - PORT_HALF / 2);
+  rightWallBack.castShadow = false;
+  rightWallBack.receiveShadow = true;
+  enclosurePart.group.add(rightWallBack);
 
   // 四角立柱 + 顶部框架：把“箱”的轮廓勾出来
   const boxPosts = [
-    [-19.95, 15.6],
-    [-19.95, -18.55],
-    [19.95, 15.6],
-    [19.95, -18.55]
+    [-BOX_EDGE, BOX_EDGE],
+    [-BOX_EDGE, -BOX_EDGE],
+    [BOX_EDGE, BOX_EDGE],
+    [BOX_EDGE, -BOX_EDGE]
   ];
   boxPosts.forEach(([x, z]) => {
     const post = mesh(rbox(1.5, 100, 1.5, 0.18), boxTrimMat);
-    post.position.set(x, 54, z);
+    post.position.set(x, BOX_MID, z);
     post.castShadow = false;
     post.receiveShadow = true;
     enclosurePart.group.add(post);
   });
 
-  [15.6, -18.55].forEach((z) => {
-    const beam = mesh(rbox(40, 1.5, 1.5, 0.16), boxTrimMat);
-    beam.position.set(0, 104, z);
+  [BOX_EDGE, -BOX_EDGE].forEach((z) => {
+    const beam = mesh(rbox(BOX_W + 1.1, 1.5, 1.5, 0.16), boxTrimMat);
+    beam.position.set(0, BOX_TOP, z);
     beam.castShadow = false;
     enclosurePart.group.add(beam);
   });
-  [-19.95, 19.95].forEach((x) => {
-    const beam = mesh(rbox(1.5, 1.5, 35.6, 0.16), boxTrimMat);
-    beam.position.set(x, 104, -1.45);
+  [-BOX_EDGE, BOX_EDGE].forEach((x) => {
+    const beam = mesh(rbox(1.5, 1.5, BOX_D + 1.1, 0.16), boxTrimMat);
+    beam.position.set(x, BOX_TOP, 0);
     beam.castShadow = false;
     enclosurePart.group.add(beam);
   });
 
   // 底座边框：交代暗箱落在台面上的范围
-  [15.6, -18.55].forEach((z) => {
-    const beam = mesh(rbox(40, 1.2, 1.2, 0.14), boxTrimMat);
+  [BOX_EDGE, -BOX_EDGE].forEach((z) => {
+    const beam = mesh(rbox(BOX_W + 1.1, 1.2, 1.2, 0.14), boxTrimMat);
     beam.position.set(0, 3.95, z);
     beam.castShadow = false;
     enclosurePart.group.add(beam);
   });
-  [-19.95, 19.95].forEach((x) => {
-    const beam = mesh(rbox(1.2, 1.2, 35.6, 0.14), boxTrimMat);
-    beam.position.set(x, 3.95, -1.45);
+  [-BOX_EDGE, BOX_EDGE].forEach((x) => {
+    const beam = mesh(rbox(1.2, 1.2, BOX_D + 1.1, 0.14), boxTrimMat);
+    beam.position.set(x, 3.95, 0);
     beam.castShadow = false;
     enclosurePart.group.add(beam);
   });
@@ -1625,12 +1618,12 @@ export function createRig(scene, options = {}) {
   const boxLid = new THREE.Group();
   enclosurePart.group.add(boxLid);
 
-  const lidPanel = mesh(rbox(42, 1.6, 37, 0.3), boxWallMat);
+  const lidPanel = mesh(rbox(BOX_W + 2, 1.6, BOX_D + 2, 0.3), boxWallMat);
   lidPanel.castShadow = false;
   lidPanel.receiveShadow = true;
   boxLid.add(lidPanel);
 
-  const lidInner = mesh(rbox(38, 0.5, 33, 0.2), boxInnerMat);
+  const lidInner = mesh(rbox(BOX_W - 1, 0.5, BOX_D - 1, 0.2), boxInnerMat);
   lidInner.position.set(0, -1.05, 0);
   lidInner.castShadow = false;
   boxLid.add(lidInner);
@@ -1640,39 +1633,279 @@ export function createRig(scene, options = {}) {
   lidHandle.castShadow = false;
   boxLid.add(lidHandle);
 
-  boxLid.position.set(0, 105.6, -1.45);
+  boxLid.position.set(0, 105.6, 0);
 
   // 密封条 + 后铰链 + 前锁扣：顶盖落座后不再悬空
-  const lidGasket = mesh(rbox(40.4, 0.16, 34.4, 0.06), boxInnerMat);
-  lidGasket.position.set(0, 104.8, -1.45);
+  const lidGasket = mesh(rbox(BOX_W + 0.4, 0.16, BOX_D + 0.4, 0.06), boxInnerMat);
+  lidGasket.position.set(0, 104.8, 0);
   lidGasket.castShadow = false;
   enclosurePart.group.add(lidGasket);
 
   [-12, 12].forEach((x) => {
     const hinge = mesh(rbox(2.6, 1.2, 1.6, 0.2), boxTrimMat);
-    hinge.position.set(x, 105.2, -18.9);
+    hinge.position.set(x, 105.2, -BOX_EDGE - 0.35);
     hinge.castShadow = false;
     enclosurePart.group.add(hinge);
 
     const latch = mesh(rbox(2.2, 1.5, 1.1, 0.16), boxTrimMat);
-    latch.position.set(x, 104.7, 16.7);
+    latch.position.set(x, 104.7, BOX_EDGE + 0.35);
     latch.castShadow = false;
     enclosurePart.group.add(latch);
   });
 
   // 盖沿金属包边，坐落后仍能把顶盖从箱体上分辨出来
-  [17.08, -19.98].forEach((z) => {
-    const bar = mesh(rbox(42.2, 0.55, 0.55, 0.12), boxTrimMat);
+  [BOX_EDGE + 0.5, -BOX_EDGE - 0.5].forEach((z) => {
+    const bar = mesh(rbox(BOX_W + 2.2, 0.55, 0.55, 0.12), boxTrimMat);
     bar.position.set(0, 105.45, z);
     bar.castShadow = false;
     enclosurePart.group.add(bar);
   });
-  [-21.08, 21.08].forEach((x) => {
-    const bar = mesh(rbox(0.55, 0.55, 37.1, 0.12), boxTrimMat);
-    bar.position.set(x, 105.45, -1.45);
+  [-BOX_EDGE - 0.5, BOX_EDGE + 0.5].forEach((x) => {
+    const bar = mesh(rbox(0.55, 0.55, BOX_D + 2.1, 0.12), boxTrimMat);
+    bar.position.set(x, 105.45, 0);
     bar.castShadow = false;
     enclosurePart.group.add(bar);
   });
+
+  // 左右进出蛋口：80 × 80 mm 洞口 + 可升降小门；左门入蛋后关闭，右门出蛋时开启
+  const sideDoors = [];
+  for (const sx of [-1]) {
+    const fx = sx * (BOX_EDGE + 0.55);
+    const fw = PORT_HALF * 2 + 2.4;
+    // 洞口金属包边
+    [PORT_Y + PORT_HALF + 0.6, PORT_Y - PORT_HALF - 0.6].forEach((y) => {
+      const bar = mesh(rbox(1.2, 0.8, fw, 0.15), boxTrimMat);
+      bar.position.set(fx, y, 0);
+      bar.castShadow = false;
+      enclosurePart.group.add(bar);
+    });
+    [PORT_HALF + 0.6, -PORT_HALF - 0.6].forEach((z) => {
+      const bar = mesh(rbox(1.2, PORT_HALF * 2 + 2.0, 0.8, 0.15), boxTrimMat);
+      bar.position.set(fx, PORT_Y, z);
+      bar.castShadow = false;
+      enclosurePart.group.add(bar);
+    });
+
+    // 门上方滑轨 / 执行器罩
+    const housing = mesh(rbox(2.8, 12, 11, 0.3), boxTrimMat);
+    housing.position.set(sx * (BOX_EDGE + 1.1), PORT_Y + 9.5, 0);
+    housing.castShadow = false;
+    enclosurePart.group.add(housing);
+    const slot = mesh(rbox(0.2, 9.5, 10.2, 0.08), boxInnerMat);
+    slot.position.set(sx * (BOX_EDGE + 0.78), PORT_Y + 9.5, 0);
+    slot.castShadow = false;
+    enclosurePart.group.add(slot);
+    const actuator = mesh(cyl(0.55, 0.55, 4.4, 14), matDark(0x2b3648, 0.4, 0.75));
+    actuator.position.set(sx * (BOX_EDGE + 1.7), PORT_Y + 9.2, 3.6);
+    actuator.castShadow = false;
+    enclosurePart.group.add(actuator);
+
+    const doorPlateTex = canvasTexture(256, 64, (ctx, w, h) => {
+      ctx.fillStyle = "#0b1218";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "rgba(53,224,200,0.45)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(3, 3, w - 6, h - 6);
+      ctx.fillStyle = "#e9f2f7";
+      ctx.font = '600 22px "JetBrains Mono", Consolas, monospace';
+      ctx.fillText("AUTO DOOR", 14, 30);
+      ctx.fillStyle = "rgba(190,212,224,0.55)";
+      ctx.font = '12px "JetBrains Mono", Consolas, monospace';
+      ctx.fillText("LIGHT SEAL", 14, 50);
+    });
+    const doorPlate = flat(new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), new THREE.MeshBasicMaterial({ map: doorPlateTex, toneMapped: false })));
+    doorPlate.position.set(sx * (BOX_EDGE + 1.1), 53.2, 5.62);
+    enclosurePart.group.add(doorPlate);
+
+    // 滑动小门：关闭时盖住洞口，打开时上移进罩内
+    const panelGroup = new THREE.Group();
+    panelGroup.position.set(sx * (BOX_EDGE + 0.95), PORT_Y, 0);
+    enclosurePart.group.add(panelGroup);
+
+    const panel = mesh(rbox(0.7, 9.2, 9.2, 0.2), boxSideMat);
+    panel.castShadow = false;
+    panel.receiveShadow = true;
+    panelGroup.add(panel);
+
+    const gasket = mesh(rbox(0.12, 9.6, 9.6, 0.06), boxInnerMat);
+    gasket.position.x = -sx * 0.38;
+    gasket.castShadow = false;
+    panelGroup.add(gasket);
+
+    const handle = mesh(rbox(0.9, 1.0, 3.0, 0.18), boxTrimMat);
+    handle.position.set(sx * 0.55, -2.2, 0);
+    handle.castShadow = false;
+    panelGroup.add(handle);
+
+    const ledMat = new THREE.MeshStandardMaterial({
+      color: 0x35e0c8,
+      emissive: 0x0f9e8f,
+      emissiveIntensity: 1.6,
+      roughness: 0.35
+    });
+    ledMat.userData.noHighlight = true;
+    const led = flat(new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), ledMat));
+    led.position.set(sx * 0.45, 3.5, 0);
+    panelGroup.add(led);
+
+    const housingLed = flat(new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), ledMat));
+    housingLed.position.set(sx * (BOX_EDGE + 1.1), 55.1, 5.62);
+    enclosurePart.group.add(housingLed);
+
+    sideDoors.push({ type: "slide", group: panelGroup, sx, level: 0, target: 0, ledMat });
+    panelGroup.position.y = PORT_Y;
+  }
+
+  // 右侧出蛋口：卷帘门；右墙补实后，出蛋时帘布卷起
+  {
+    const fx = BOX_EDGE + 0.55;
+    const fw = PORT_HALF * 2 + 2.4;
+    [PORT_Y + PORT_HALF + 0.6, PORT_Y - PORT_HALF - 0.6].forEach((y) => {
+      const bar = mesh(rbox(1.2, 0.8, fw, 0.15), boxTrimMat);
+      bar.position.set(fx, y, 0);
+      bar.castShadow = false;
+      enclosurePart.group.add(bar);
+    });
+    [PORT_HALF + 0.6, -PORT_HALF - 0.6].forEach((z) => {
+      const bar = mesh(rbox(1.2, PORT_HALF * 2 + 2.0, 0.8, 0.15), boxTrimMat);
+      bar.position.set(fx, PORT_Y, z);
+      bar.castShadow = false;
+      enclosurePart.group.add(bar);
+    });
+    [-1, 1].forEach((sz) => {
+      const rail = mesh(rbox(0.5, 9.0, 0.5, 0.12), boxTrimMat);
+      rail.position.set(fx + 0.42, PORT_Y, sz * 4.55);
+      rail.castShadow = false;
+      enclosurePart.group.add(rail);
+    });
+
+    const housing = mesh(rbox(2.4, 5.4, 11, 0.3), boxTrimMat);
+    housing.position.set(fx + 0.55, PORT_Y + 7.4, 0);
+    housing.castShadow = false;
+    enclosurePart.group.add(housing);
+    const drum = mesh(cyl(1.45, 1.45, 10.4, 22), boxInnerMat);
+    drum.rotation.x = Math.PI / 2;
+    drum.position.set(fx + 0.35, PORT_Y + 6.8, 0);
+    drum.castShadow = false;
+    enclosurePart.group.add(drum);
+    const motor = mesh(cyl(0.8, 0.8, 2.8, 16), matDark(0x2b3648, 0.4, 0.75));
+    motor.rotation.x = Math.PI / 2;
+    motor.position.set(fx + 0.55, PORT_Y + 7.4, 5.7);
+    motor.castShadow = false;
+    enclosurePart.group.add(motor);
+
+    const rollTex = canvasTexture(512, 512, (ctx, w, h) => {
+      ctx.fillStyle = "#141a20";
+      ctx.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += 18) {
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        ctx.fillRect(0, y, w, 3);
+        ctx.fillStyle = "rgba(0,0,0,0.38)";
+        ctx.fillRect(0, y + 3, w, 3);
+      }
+      ctx.strokeStyle = "rgba(53,224,200,0.12)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, w - 4, h - 4);
+    });
+    const rollMat = new THREE.MeshStandardMaterial({ map: rollTex, roughness: 0.88, metalness: 0.06 });
+    const curtain = mesh(rbox(0.35, 8.6, 9.0, 0.08), rollMat);
+    curtain.castShadow = false;
+    enclosurePart.group.add(curtain);
+
+    const barGroup = new THREE.Group();
+    barGroup.position.set(fx + 0.35, PORT_Y - PORT_HALF, 0);
+    enclosurePart.group.add(barGroup);
+    const bottomBar = mesh(rbox(0.55, 0.9, 9.3, 0.15), boxTrimMat);
+    bottomBar.castShadow = false;
+    barGroup.add(bottomBar);
+    const pull = mesh(rbox(0.8, 0.6, 3.4, 0.14), matMetal(0x0f9e8f, 0.3, 0.6));
+    pull.position.set(0.55, 0.1, 0);
+    pull.castShadow = false;
+    barGroup.add(pull);
+
+    const ledMat = new THREE.MeshStandardMaterial({
+      color: 0xffb36b,
+      emissive: 0xff8a3d,
+      emissiveIntensity: 1.6,
+      roughness: 0.35
+    });
+    ledMat.userData.noHighlight = true;
+    const led = flat(new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), ledMat));
+    led.position.set(fx + 0.55, PORT_Y + 8.5, 5.62);
+    enclosurePart.group.add(led);
+    const plateTex = canvasTexture(256, 64, (ctx, w, h) => {
+      ctx.fillStyle = "#0b1218";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "rgba(53,224,200,0.45)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(3, 3, w - 6, h - 6);
+      ctx.fillStyle = "#e9f2f7";
+      ctx.font = '600 20px "JetBrains Mono", Consolas, monospace';
+      ctx.fillText("ROLL-UP OUT", 12, 29);
+      ctx.fillStyle = "rgba(190,212,224,0.55)";
+      ctx.font = '11px "JetBrains Mono", Consolas, monospace';
+      ctx.fillText("AUTO DOOR · LIGHT SEAL", 12, 49);
+    });
+    const plate = flat(new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshBasicMaterial({ map: plateTex, toneMapped: false })));
+    plate.position.set(fx + 0.55, PORT_Y + 7.2, 5.62);
+    enclosurePart.group.add(plate);
+
+    const rightState = {
+      type: "roll",
+      sx: 1,
+      level: 0,
+      target: 0,
+      curtain,
+      barGroup,
+      baseH: 8.6,
+      ledMat
+    };
+    sideDoors.push(rightState);
+    // 初始为关闭：采集时左右两门都落下，形成封闭避光
+    curtain.scale.y = 1;
+    curtain.position.set(fx + 0.35, PORT_Y + PORT_HALF - 4.3, 0);
+    barGroup.position.y = PORT_Y + PORT_HALF - 8.6;
+  }
+
+  // 顶部固定法兰：光谱仪直接吊在顶盖内侧，不再用后立柱悬臂
+  const mountMat = matMetal(0x5a6b78, 0.36, 0.86);
+  const mountFoot = mesh(rbox(18, 0.8, 6, 0.2), mountMat);
+  mountFoot.position.set(0, 100.2, 4);
+  mountFoot.castShadow = false;
+  enclosurePart.group.add(mountFoot);
+  [-8, 8].forEach((x) => {
+    const rail = mesh(rbox(1.2, 4.8, 6, 0.2), mountMat);
+    rail.position.set(x, 102.4, 4);
+    rail.castShadow = false;
+    enclosurePart.group.add(rail);
+  });
+  const mountCross = mesh(rbox(18, 1.0, 6, 0.2), mountMat);
+  mountCross.position.set(0, 104.3, 4);
+  mountCross.castShadow = false;
+  enclosurePart.group.add(mountCross);
+  [-8, 8].forEach((x) => {
+    const bolt = mesh(cyl(0.28, 0.28, 0.3, 10), matMetal(0xc3ced8, 0.3, 0.9));
+    bolt.position.set(x, 104.85, 5.6);
+    enclosurePart.group.add(bolt);
+  });
+
+  // 左下散热口：迷宫式挡光的简化表达
+  const ventPlate = mesh(rbox(0.5, 7.5, 6.5, 0.2), boxInnerMat);
+  ventPlate.position.set(-BOX_EDGE + 0.1, 12, 0);
+  ventPlate.castShadow = false;
+  enclosurePart.group.add(ventPlate);
+  for (let i = 0; i < 5; i += 1) {
+    const slat = mesh(rbox(0.3, 0.35, 5.6, 0.08), boxTrimMat);
+    slat.position.set(-BOX_EDGE + 0.42, 9.4 + i * 1.3, 0);
+    slat.castShadow = false;
+    enclosurePart.group.add(slat);
+  }
+
+  // 数据线穿墙的密封接头
+  const dataGland = mesh(cyl(0.9, 0.9, 1.2, 16), matDark(0x111a22, 0.55, 0.3));
+  dataGland.rotation.x = Math.PI / 2;
+  dataGland.position.set(10.6, 93.2, -BOX_EDGE + 0.05);
+  enclosurePart.group.add(dataGland);
 
   // 前上沿的铭牌：暗箱的身份与“采集时全封闭”
   const boxLabelTex = canvasTexture(1024, 160, (ctx, w, h) => {
@@ -1695,15 +1928,15 @@ export function createRig(scene, options = {}) {
   });
   const boxLabel = flat(
     new THREE.Mesh(
-      new THREE.PlaneGeometry(28, 4.4),
+      new THREE.PlaneGeometry(24, 4.4),
       new THREE.MeshBasicMaterial({ map: boxLabelTex, toneMapped: false })
     )
   );
-  boxLabel.position.set(0, 101.4, 15.72);
+  boxLabel.position.set(0, 108, BOX_EDGE + 3.15);
   enclosurePart.group.add(boxLabel);
 
-  const boxLabelBar = mesh(rbox(28, 0.7, 0.5, 0.12), boxTrimMat);
-  boxLabelBar.position.set(0, 103.95, 15.55);
+  const boxLabelBar = mesh(rbox(24, 0.7, 0.5, 0.12), boxTrimMat);
+  boxLabelBar.position.set(0, 111.2, BOX_EDGE + 3.0);
   boxLabelBar.castShadow = false;
   enclosurePart.group.add(boxLabelBar);
 
@@ -1715,20 +1948,390 @@ export function createRig(scene, options = {}) {
     toneMapped: false
   });
   boxLedMat.userData.noHighlight = true;
-  const boxLed = flat(new THREE.Mesh(new THREE.BoxGeometry(34, 0.1, 0.1), boxLedMat));
-  boxLed.position.set(0, 100.6, -17.92);
+  const boxLed = flat(new THREE.Mesh(new THREE.BoxGeometry(24, 0.1, 0.1), boxLedMat));
+  boxLed.position.set(0, 100.6, -BOX_EDGE + 0.1);
   enclosurePart.group.add(boxLed);
 
   const boxStatus = flat(new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8), boxLedMat));
-  boxStatus.position.set(19.95, 96, 15.72);
+  boxStatus.position.set(15.8, 108, BOX_EDGE + 3.2);
   enclosurePart.group.add(boxStatus);
+
+  // 前维护门：卷帘式（采集时放下，展示时卷起），不遮挡内部剖开
+  const frontGasketMat = boxInnerMat;
+  [BOX_TOP - 0.6, BOX_BOTTOM + 0.6].forEach((y) => {
+    const strip = mesh(rbox(BOX_W + 1.4, 0.45, 0.35, 0.08), frontGasketMat);
+    strip.position.set(0, y, BOX_EDGE + 0.05);
+    strip.castShadow = false;
+    enclosurePart.group.add(strip);
+  });
+  [-BOX_HALF + 0.3, BOX_HALF - 0.3].forEach((x) => {
+    const strip = mesh(rbox(0.35, BOX_TOP - BOX_BOTTOM, 0.35, 0.08), frontGasketMat);
+    strip.position.set(x, BOX_MID, BOX_EDGE + 0.05);
+    strip.castShadow = false;
+    enclosurePart.group.add(strip);
+  });
+
+  // 前门两侧导轨
+  [-15.8, 15.8].forEach((x) => {
+    const rail = mesh(rbox(1.0, 101, 1.0, 0.2), boxTrimMat);
+    rail.position.set(x, 54.5, BOX_EDGE + 0.55);
+    rail.castShadow = false;
+    enclosurePart.group.add(rail);
+    const shoe = mesh(rbox(1.8, 2.4, 2.4, 0.2), boxTrimMat);
+    shoe.position.set(x, 97.5, BOX_EDGE + 0.65);
+    shoe.castShadow = false;
+    enclosurePart.group.add(shoe);
+  });
+
+  // 顶罩 + 卷轴 + 驱动电机
+  const doorHousing = mesh(rbox(34, 6, 5, 0.4), boxTrimMat);
+  doorHousing.position.set(0, 108, BOX_EDGE + 0.6);
+  doorHousing.castShadow = false;
+  enclosurePart.group.add(doorHousing);
+  const doorDrum = mesh(cyl(2.2, 2.2, 30, 24), boxInnerMat);
+  doorDrum.rotation.z = Math.PI / 2;
+  doorDrum.position.set(0, 108, BOX_EDGE + 0.6);
+  doorDrum.castShadow = false;
+  enclosurePart.group.add(doorDrum);
+  const doorMotor = mesh(cyl(1.0, 1.0, 3.4, 18), matDark(0x2b3648, 0.4, 0.75));
+  doorMotor.rotation.z = Math.PI / 2;
+  doorMotor.position.set(17.2, 108, BOX_EDGE + 0.6);
+  doorMotor.castShadow = false;
+  enclosurePart.group.add(doorMotor);
+
+  // 整幅卷帘 + 底梁 + 把手锁：展示时卷起，进入装置时打开
+  const curtainTex = canvasTexture(512, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#141a20";
+    ctx.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 10) {
+      ctx.fillStyle = "rgba(255,255,255,0.055)";
+      ctx.fillRect(0, y, w, 2);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, y + 2, w, 2);
+    }
+    ctx.strokeStyle = "rgba(53,224,200,0.18)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+  });
+  curtainTex.wrapT = THREE.RepeatWrapping;
+  curtainTex.repeat.set(1, 6);
+  const curtainMat = new THREE.MeshStandardMaterial({ map: curtainTex, roughness: 0.86, metalness: 0.08 });
+  const frontCurtain = mesh(rbox(30, 100, 0.8, 0.1), curtainMat);
+  frontCurtain.castShadow = false;
+  enclosurePart.group.add(frontCurtain);
+
+  const frontBarGroup = new THREE.Group();
+  frontBarGroup.position.set(0, 4, BOX_EDGE + 1.05);
+  enclosurePart.group.add(frontBarGroup);
+  const doorBar = mesh(rbox(31, 1.2, 1.4, 0.2), boxTrimMat);
+  doorBar.castShadow = false;
+  frontBarGroup.add(doorBar);
+  const doorHandle = mesh(rbox(6, 1.0, 1.8, 0.2), matMetal(0x0f9e8f, 0.3, 0.6));
+  doorHandle.position.set(0, 0, 0.95);
+  doorHandle.castShadow = false;
+  frontBarGroup.add(doorHandle);
+  const doorLock = mesh(rbox(2.2, 2.2, 1.0, 0.2), boxTrimMat);
+  doorLock.position.set(12.8, 0, 0.65);
+  doorLock.castShadow = false;
+  frontBarGroup.add(doorLock);
+  const doorLed = flat(new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), boxLedMat));
+  doorLed.position.set(12.8, 0, 1.2);
+  frontBarGroup.add(doorLed);
+
+  const rollLabelTex = canvasTexture(512, 64, (ctx, w, h) => {
+    ctx.fillStyle = "#0b1218";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(53,224,200,0.85)";
+    ctx.fillRect(0, 0, 8, h);
+    ctx.fillStyle = "#e9f2f7";
+    ctx.font = '600 24px "JetBrains Mono", Consolas, monospace';
+    ctx.fillText("FRONT DOOR · ROLL-UP", 24, 40);
+  });
+  const rollLabel = flat(new THREE.Mesh(new THREE.PlaneGeometry(8.4, 0.95), new THREE.MeshBasicMaterial({ map: rollLabelTex, toneMapped: false })));
+  rollLabel.position.set(-8.6, 0, 0.85);
+  frontBarGroup.add(rollLabel);
+
+  const frontDoorStart = options.frontDoorOpen !== false;
+  let frontLevel = frontDoorStart ? 1 : 0;
+  let frontTarget = frontLevel;
+
+  function applyFrontDoor() {
+    const h = 100 - (100 - 8) * frontLevel;
+    frontCurtain.scale.y = h / 100;
+    frontCurtain.position.set(0, 104 - h / 2, BOX_EDGE + 1.05);
+    frontBarGroup.position.y = 104 - h;
+  }
+
+  function setFrontDoor(open) {
+    frontTarget = open ? 1 : 0;
+  }
+
+  /* 卷帘开度：0 = 放下密封，1 = 完全卷起；供滑杆连续控制 */
+  function setFrontDoorLevel(level) {
+    const n = Number(level);
+    frontTarget = clamp(Number.isFinite(n) ? n : 0, 0, 1);
+  }
+  applyFrontDoor();
+
+  /* 11 · 进出蛋履带：左进右出，与左右小门联动 */
+  const conveyorPart = makePart({
+    id: "conveyor",
+    name: "进出蛋履带",
+    en: "Infeed / outfeed conveyors",
+    short: "进出蛋履带",
+    anchor: [33, 49, 0],
+    explodeY: 0,
+    specs: [
+      ["方式", "左进右出 · 履带传送"],
+      ["节拍", "≈12.5 s/枚（含取放）"],
+      ["小门", "左门入蛋后关闭 · 右门出蛋时开启"],
+      ["环境", "左门关闭后形成封闭避光"]
+    ],
+    note: "履带把蛋送到暗箱口；左门关闭后开始采集，鉴定完成右门打开出蛋，再进入下一枚。"
+  });
+
+  function makeBeltTexture() {
+    return canvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = "#171d23";
+      ctx.fillRect(0, 0, w, h);
+      for (let x = 0; x < w; x += 32) {
+        ctx.fillStyle = "rgba(225,238,246,0.10)";
+        ctx.fillRect(x, 0, 4, h);
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.fillRect(x + 4, 0, 3, h);
+      }
+      ctx.fillStyle = "rgba(255,255,255,0.03)";
+      for (let i = 0; i < 70; i += 1) {
+        ctx.fillRect((i * 73) % w, (i * 29) % h, 2, 1);
+      }
+      ctx.strokeStyle = "rgba(0,0,0,0.45)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(1.5, 1.5, w - 3, h - 3);
+    });
+  }
+
+  const beltTexL = makeBeltTexture();
+  const beltTexR = makeBeltTexture();
+  beltTexL.wrapS = THREE.RepeatWrapping;
+  beltTexR.wrapS = THREE.RepeatWrapping;
+  beltTexL.repeat.set(7, 1);
+  beltTexR.repeat.set(7, 1);
+  const beltMats = [
+    { tex: beltTexL, dir: 1 },
+    { tex: beltTexR, dir: -1 }
+  ];
+  // 履带默认停带：只有讲解、采集或手动控制时运行；停带后画面可完全收敛
+  let beltOn = false;
+  let beltLevel = 0;
+  const beltMatL = new THREE.MeshStandardMaterial({ map: beltTexL, roughness: 0.86, metalness: 0.04 });
+  const beltMatR = new THREE.MeshStandardMaterial({ map: beltTexR, roughness: 0.86, metalness: 0.04 });
+  const conveyorFrameMat = matMetal(0x6c7784, 0.36, 0.86);
+  const conveyorRubber = M.rubber({ color: 0x1a2026, roughness: 0.9 });
+  const conveyorDark = matDark(0x141b22, 0.55, 0.35);
+
+  for (const side of [-1, 1]) {
+    const g = new THREE.Group();
+    const inner = side * 16.2;
+    const outer = side * 47.5;
+    const mid = (inner + outer) / 2;
+    const len = Math.abs(outer - inner);
+
+    const belt = mesh(rbox(len, 0.55, 7.6, 0.2), side < 0 ? beltMatL : beltMatR);
+    belt.position.set(mid, 42.2, 0);
+    belt.castShadow = false;
+    belt.receiveShadow = true;
+    g.add(belt);
+
+    [-1, 1].forEach((sz) => {
+      const rail = mesh(rbox(len + 1.2, 1.2, 0.7, 0.2), conveyorFrameMat);
+      rail.position.set(mid, 41.35, sz * 4.3);
+      rail.castShadow = false;
+      g.add(rail);
+      const guide = mesh(rbox(len * 0.92, 0.45, 0.18, 0.08), conveyorDark);
+      guide.position.set(mid, 43.45, sz * 3.85);
+      guide.castShadow = false;
+      g.add(guide);
+    });
+
+    const legMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.0, 37.3, 1.0), conveyorFrameMat, 6);
+    const footMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(2.0, 0.5, 2.0), conveyorDark, 6);
+    let li = 0;
+    [0.3, 0.62, 0.9].forEach((t) => {
+      const x = inner + (outer - inner) * t;
+      [-1, 1].forEach((sz) => {
+        dummy.position.set(x, 22.3, sz * 3.6);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        legMesh.setMatrixAt(li, dummy.matrix);
+        dummy.position.set(x, 3.4, sz * 3.6);
+        dummy.updateMatrix();
+        footMesh.setMatrixAt(li, dummy.matrix);
+        li += 1;
+      });
+    });
+    legMesh.instanceMatrix.needsUpdate = true;
+    footMesh.instanceMatrix.needsUpdate = true;
+    legMesh.castShadow = false;
+    footMesh.castShadow = false;
+    g.add(legMesh, footMesh);
+
+    [-1, 1].forEach((sz) => {
+      const cross = mesh(rbox(len * 0.82, 0.55, 0.55, 0.15), conveyorFrameMat);
+      cross.position.set(mid, 18.2, sz * 3.6);
+      cross.castShadow = false;
+      g.add(cross);
+    });
+
+    [inner + side * 1.4, outer - side * 1.4].forEach((x) => {
+      const roller = mesh(cyl(0.8, 0.8, 8.2, 20), conveyorFrameMat);
+      roller.rotation.x = Math.PI / 2;
+      roller.position.set(x, 41.8, 0);
+      roller.castShadow = false;
+      g.add(roller);
+    });
+
+    const motor = mesh(cyl(1.1, 1.1, 3.2, 18), conveyorDark);
+    motor.rotation.x = Math.PI / 2;
+    motor.position.set(outer + side * 1.2, 40.8, 2.8);
+    motor.castShadow = false;
+    g.add(motor);
+    const motorBox = mesh(rbox(2.8, 2.8, 3.4, 0.25), conveyorFrameMat);
+    motorBox.position.set(outer + side * 1.2, 40.8, -0.6);
+    motorBox.castShadow = false;
+    g.add(motorBox);
+
+    const ctrl = mesh(rbox(4.2, 3.0, 2.2, 0.2), conveyorDark);
+    ctrl.position.set(mid, 44.6, 4.9);
+    ctrl.castShadow = false;
+    g.add(ctrl);
+    const btnMat = new THREE.MeshStandardMaterial({
+      color: 0x35e0c8,
+      emissive: 0x0f9e8f,
+      emissiveIntensity: 1.8,
+      roughness: 0.3
+    });
+    btnMat.userData.noHighlight = true;
+    const btn = flat(new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 12), btnMat));
+    btn.position.set(mid, 46.2, 4.9);
+    g.add(btn);
+
+    const labelTex = canvasTexture(256, 64, (ctx, w, h) => {
+      ctx.fillStyle = "#0b1218";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "rgba(53,224,200,0.5)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = "#e9f2f7";
+      ctx.font = '600 26px "JetBrains Mono", Consolas, monospace';
+      ctx.fillText(side < 0 ? "IN  →" : "→  OUT", 22, 41);
+    });
+    const label = flat(new THREE.Mesh(new THREE.PlaneGeometry(3.8, 1.0), new THREE.MeshBasicMaterial({ map: labelTex, toneMapped: false })));
+    label.position.set(mid, 44.6, 6.02);
+    g.add(label);
+
+    // 履带上的蛋杯；左侧两枚待检，右侧一枚刚出箱
+    const cupMesh = new THREE.InstancedMesh(cyl(2.6, 2.6, 0.55, 24), conveyorRubber, 3);
+    [0.22, 0.5, 0.78].forEach((t, i) => {
+      const x = inner + (outer - inner) * t;
+      dummy.position.set(x, 42.62, 0);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      cupMesh.setMatrixAt(i, dummy.matrix);
+    });
+    cupMesh.instanceMatrix.needsUpdate = true;
+    cupMesh.castShadow = false;
+    g.add(cupMesh);
+    const eggTs = side < 0 ? [0.5] : [0.78];
+    eggTs.forEach((t) => {
+      const x = inner + (outer - inner) * t;
+      const e = mesh(eggGeo, eggMat);
+      e.scale.setScalar(0.9);
+      e.position.set(x, 45.3, 0);
+      e.castShadow = false;
+      g.add(e);
+    });
+
+    conveyorPart.group.add(g);
+  }
+
+  // 传送演示用的“过路蛋”：进箱时替换主蛋，出箱后再换回
+  const travelEgg = mesh(eggGeo, eggMat);
+  travelEgg.visible = false;
+  travelEgg.castShadow = false;
+  travelEgg.position.set(-23, 46, 0);
+  root.add(travelEgg);
+
+  let travelAnim = null;
+  let transferToken = 0;
+  const waitMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function runTravel(fromX, toX, dur = 0.9) {
+    return new Promise((resolve) => {
+      // 新行程接管旧行程：先让旧 Promise 落地，避免调用方永远挂着
+      if (travelAnim) {
+        const prev = travelAnim.resolve;
+        travelAnim = null;
+        prev();
+      }
+      travelEgg.visible = true;
+      travelEgg.position.set(fromX, 46, 0);
+      travelAnim = { fromX, toX, start: performance.now(), dur, resolve };
+    });
+  }
+
+  /* 跳过讲解 / 手动接管时立即收掉半途的蛋，门回到关闭位 */
+  function cancelTransfer() {
+    transferToken += 1;
+    if (travelAnim) {
+      const done = travelAnim.resolve;
+      travelAnim = null;
+      travelEgg.visible = false;
+      done();
+    }
+    eggLift.visible = true;
+    setDoors(false, false);
+  }
+
+  async function transferIn() {
+    const my = ++transferToken;
+    setDoors(true, false);
+    await waitMs(340);
+    if (my !== transferToken) return;
+    eggLift.visible = false;
+    await runTravel(-23, 0, 0.9);
+    if (my !== transferToken) return;
+    setDoors(false, false);
+    await waitMs(360);
+    if (my !== transferToken) return;
+    travelEgg.visible = false;
+    eggLift.visible = true;
+  }
+
+  async function transferOut() {
+    const my = ++transferToken;
+    setDoors(false, true);
+    await waitMs(260);
+    if (my !== transferToken) return;
+    eggLift.visible = false;
+    travelEgg.position.set(0, 46, 0);
+    travelEgg.visible = true;
+    await runTravel(0, 23, 0.9);
+    if (my !== transferToken) return;
+    setDoors(false, false);
+    await waitMs(280);
+    if (my !== transferToken) return;
+    travelEgg.visible = false;
+    eggLift.visible = true;
+  }
 
   /* 光路 */
   const beamGroup = new THREE.Group();
   beamGroup.name = "beam";
   root.add(beamGroup);
 
-  const beamGeo = new THREE.CylinderGeometry(3.05, 5.2, 56, 40, 8, true);
+  const beamGeo = new THREE.CylinderGeometry(3.05, 5.2, 65.5, 40, 8, true);
 
   const coneMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -1770,7 +2373,7 @@ export function createRig(scene, options = {}) {
     toneMapped: false
   });
   const cone = flat(new THREE.Mesh(beamGeo, coneMat));
-  cone.position.y = 42;
+  cone.position.y = 46.75;
   cone.renderOrder = 3;
   beamGroup.add(cone);
 
@@ -1781,8 +2384,8 @@ export function createRig(scene, options = {}) {
     blending: THREE.NormalBlending,
     depthWrite: false
   });
-  const core = flat(new THREE.Mesh(cyl(1.15, 1.15, 56, 20), coreMat));
-  core.position.y = 42;
+  const core = flat(new THREE.Mesh(cyl(1.15, 1.15, 65.5, 20), coreMat));
+  core.position.y = 46.75;
   core.renderOrder = 3;
   beamGroup.add(core);
 
@@ -1842,7 +2445,7 @@ export function createRig(scene, options = {}) {
     )
   );
   scanRing.rotation.x = Math.PI / 2;
-  scanRing.position.set(0, 33, 0);
+  scanRing.position.set(0, 43.2, 0);
   scanRing.visible = false;
   root.add(scanRing);
 
@@ -2029,6 +2632,7 @@ export function createRig(scene, options = {}) {
     openState.forEach((st) => {
       if (st.level > 0.001) tween(st, "level", 0, 0.45);
     });
+    cancelTransfer();
   }
 
   function setRuler(on) {
@@ -2083,10 +2687,38 @@ export function createRig(scene, options = {}) {
     const show = progress !== null && !explodeOn;
     scanRing.visible = show;
     if (show) {
-      scanRing.position.y = 33.3 + progress * 6.4;
+      scanRing.position.y = 43.2 + progress * 5.8;
       const s = 0.92 + 0.14 * Math.sin(progress * Math.PI);
       scanRing.scale.setScalar(s);
     }
+  }
+
+  function setSideDoor(sx, open) {
+    const d = sideDoors.find((item) => item.sx === sx);
+    if (d) d.target = open ? 1 : 0;
+  }
+
+  function setDoors(leftOpen, rightOpen) {
+    setSideDoor(-1, leftOpen);
+    setSideDoor(1, rightOpen);
+  }
+
+  function setBelt(on) {
+    beltOn = !!on;
+  }
+
+  /* 机构控制台用：给 UI 一份可直接渲染的真实开合状态 */
+  function getMechanismState() {
+    const left = sideDoors.find((d) => d.sx === -1);
+    const right = sideDoors.find((d) => d.sx === 1);
+    return {
+      front: frontLevel,
+      frontTarget,
+      left: left ? { level: left.level, target: left.target } : { level: 0, target: 0 },
+      right: right ? { level: right.level, target: right.target } : { level: 0, target: 0 },
+      belt: beltOn,
+      beltLevel
+    };
   }
 
   function setHighlight(id, on) {
@@ -2126,6 +2758,52 @@ export function createRig(scene, options = {}) {
     parts.forEach((part) => {
       part.group.position.y = part.baseY + part.offsetY;
     });
+
+    // 左右小门：左门关闭 = 封闭避光；右门打开 = 出蛋
+    sideDoors.forEach((d) => {
+      d.level += (d.target - d.level) * (1 - Math.exp(-dt * 8));
+      if (Math.abs(d.target - d.level) < 0.002) d.level = d.target;
+      if (d.type === "roll") {
+        const h = d.baseH - (d.baseH - 0.6) * d.level;
+        d.curtain.scale.y = h / d.baseH;
+        d.curtain.position.y = PORT_Y + PORT_HALF - h / 2;
+        d.barGroup.position.y = PORT_Y + PORT_HALF - h;
+      } else {
+        d.group.position.y = PORT_Y + d.level * 9.2;
+      }
+      const open = d.level > 0.5;
+      d.ledMat.color.setHex(open ? 0xffb36b : 0x35e0c8);
+      d.ledMat.emissive.setHex(open ? 0xff8a3d : 0x0f9e8f);
+    });
+
+    // 履带：运行时纹理滚动，停机时缓慢收住；停带后不再触发渲染
+    const beltTarget = beltOn ? 1 : 0;
+    beltLevel += (beltTarget - beltLevel) * (1 - Math.exp(-dt * 5));
+    if (Math.abs(beltTarget - beltLevel) < 0.001) beltLevel = beltTarget;
+    if (beltLevel > 0.001) {
+      beltMats.forEach(({ tex, dir }) => {
+        tex.offset.x = (tex.offset.x + dt * 0.34 * beltLevel * dir + 1) % 1;
+      });
+    }
+
+    // 过路蛋：进箱 / 出箱（按墙钟推进，低帧率下也不会卡住）
+    if (travelAnim) {
+      const k = Math.min(1, ((performance.now() - travelAnim.start) / 1000) / travelAnim.dur);
+      const e = 1 - Math.pow(1 - k, 3);
+      travelEgg.position.x = travelAnim.fromX + (travelAnim.toX - travelAnim.fromX) * e;
+      travelEgg.position.y = 46;
+      if (k >= 1) {
+        const done = travelAnim.resolve;
+        travelAnim = null;
+        travelEgg.visible = false;
+        done();
+      }
+    }
+
+    // 前卷帘门：进入装置时卷起，露出内部光路
+    frontLevel += (frontTarget - frontLevel) * (1 - Math.exp(-dt * 2.4));
+    if (Math.abs(frontTarget - frontLevel) < 0.001) frontLevel = frontTarget;
+    applyFrontDoor();
 
     // 选中高亮：统一淡入淡出，避免上一个零件残留发光
     let highlightMoving = false;
@@ -2187,7 +2865,12 @@ export function createRig(scene, options = {}) {
       highlightMoving ||
       Math.abs(beamTarget - beamLevel) > 0.002 ||
       Math.abs((xrayOn ? 1 : 0) - xrayLevel) > 0.002 ||
-      scanProgress !== null;
+      scanProgress !== null ||
+      travelAnim !== null ||
+      beltLevel > 0.002 ||
+      Math.abs(beltTarget - beltLevel) > 0.002 ||
+      Math.abs(frontTarget - frontLevel) > 0.002 ||
+      sideDoors.some((d) => Math.abs(d.target - d.level) > 0.002);
   }
 
   return {
@@ -2201,6 +2884,15 @@ export function createRig(scene, options = {}) {
     setXray,
     setExplode,
     setScan,
+    setSideDoor,
+    setDoors,
+    setFrontDoor,
+    setFrontDoorLevel,
+    setBelt,
+    getMechanismState,
+    cancelTransfer,
+    transferIn,
+    transferOut,
     setRuler,
     setOpen,
     setAllClosed,
